@@ -1,4 +1,4 @@
--- Markus Script v3.8 (PC + Mobile)
+-- Markus Script v3.9 (PC + Mobile)
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -72,7 +72,7 @@ local tweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quad)
 
 -- Заголовок (внизу)
 local title = Instance.new("TextLabel")
-title.Text = "MARKUS SCRIPT v3.8"
+title.Text = "MARKUS SCRIPT v3.9"
 title.Size = UDim2.new(1, 0, 0, 20)
 title.Position = UDim2.new(0, 0, 1, -25)
 title.Font = Enum.Font.GothamBold
@@ -194,6 +194,13 @@ local function createESP(character)
     if not character or character == player.Character then return end
     
     SafeCall(function()
+        -- Проверяем, есть ли уже ESP для этого персонажа
+        for _, esp in pairs(espCache) do
+            if esp and esp.Parent == character then
+                return
+            end
+        end
+        
         local highlight = Instance.new("Highlight")
         highlight.Name = "MarkusESP_"..tostring(os.time())
         highlight.Adornee = character
@@ -202,7 +209,36 @@ local function createESP(character)
         highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
         highlight.Parent = character
         
+        -- Добавляем текстовый лейбл для имени игрока
+        local playerName = Players:GetPlayerFromCharacter(character)
+        if playerName then
+            local billboard = Instance.new("BillboardGui")
+            billboard.Name = "MarkusESP_Name"
+            billboard.Adornee = character:FindFirstChild("Head") or character:FindFirstChild("HumanoidRootPart") or character.PrimaryPart
+            billboard.Size = UDim2.new(0, 200, 0, 50)
+            billboard.StudsOffset = Vector3.new(0, 3, 0)
+            billboard.AlwaysOnTop = true
+            billboard.Parent = character
+            
+            local nameLabel = Instance.new("TextLabel")
+            nameLabel.Text = playerName.Name
+            nameLabel.Size = UDim2.new(1, 0, 1, 0)
+            nameLabel.Font = Enum.Font.GothamBold
+            nameLabel.TextSize = 18
+            nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+            nameLabel.BackgroundTransparency = 1
+            nameLabel.Parent = billboard
+        end
+        
         table.insert(espCache, highlight)
+        
+        -- Для невидимых игроков добавляем дополнительный эффект
+        local invisCheck = character:FindFirstChildWhichIsA("BodyColors") or character:FindFirstChildOfClass("Humanoid")
+        if not invisCheck then
+            highlight.OutlineColor = Color3.fromRGB(255, 0, 0) -- Красный для невидимых
+            highlight.FillColor = Color3.fromRGB(255, 0, 0)
+            highlight.FillTransparency = 0.7
+        end
     end)
 end
 
@@ -210,6 +246,14 @@ local function clearESP()
     SafeCall(function()
         for _, esp in pairs(espCache) do
             if esp and esp.Parent then
+                -- Удаляем также BillboardGui с именами
+                local character = esp.Adornee
+                if character then
+                    local billboard = character:FindFirstChild("MarkusESP_Name")
+                    if billboard then
+                        billboard:Destroy()
+                    end
+                end
                 esp:Destroy()
             end
         end
@@ -222,8 +266,17 @@ local function updateESP()
         clearESP()
         if espEnabled then
             for _, plr in pairs(Players:GetPlayers()) do
-                if plr ~= player and plr.Character then
-                    createESP(plr.Character)
+                if plr ~= player then
+                    -- Проверяем текущего персонажа
+                    if plr.Character then
+                        createESP(plr.Character)
+                    end
+                    -- Подключаемся к будущим персонажам
+                    plr.CharacterAdded:Connect(function(char)
+                        if espEnabled then
+                            createESP(char)
+                        end
+                    end)
                 end
             end
         end
@@ -234,6 +287,75 @@ espButton.MouseButton1Click:Connect(function()
     espEnabled = not espEnabled
     espButton.Text = "ESP: " .. (espEnabled and "ON" or "OFF")
     updateESP()
+end)
+
+-- Улучшенный визуальный спин
+local spinButton = CreateButton("Visual Spin: OFF", 60, visualTab)
+local spinEnabled = false
+local spinSpeed = 10 -- Увеличим скорость
+local spinParts = {}
+local spinConnections = {}
+
+local function setSpin(enabled)
+    SafeCall(function()
+        local character = player.Character
+        if not character then return end
+        
+        if enabled then
+            -- Собираем все части для кручения
+            spinParts = {}
+            
+            for _, part in pairs(character:GetDescendants()) do
+                if part:IsA("BasePart") and part ~= character:FindFirstChild("HumanoidRootPart") then
+                    table.insert(spinParts, part)
+                    
+                    -- Добавляем свечение для эффекта
+                    local glow = Instance.new("SurfaceGui", part)
+                    glow.Face = Enum.NormalId.Front
+                    glow.AlwaysOnTop = true
+                    
+                    local frame = Instance.new("Frame", glow)
+                    frame.Size = UDim2.new(1, 0, 1, 0)
+                    frame.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+                    frame.BackgroundTransparency = 0.7
+                    frame.BorderSizePixel = 0
+                end
+            end
+            
+            -- Создаем эффект кручения для каждой части
+            for _, part in pairs(spinParts) do
+                local spinConn = RunService.Heartbeat:Connect(function(delta)
+                    if part and part.Parent then
+                        part.CFrame = part.CFrame * CFrame.Angles(0, math.rad(spinSpeed), 0)
+                    end
+                end)
+                table.insert(spinConnections, spinConn)
+            end
+        else
+            -- Останавливаем все соединения
+            for _, conn in pairs(spinConnections) do
+                conn:Disconnect()
+            end
+            spinConnections = {}
+            
+            -- Удаляем свечение
+            for _, part in pairs(spinParts) do
+                if part and part.Parent then
+                    local glow = part:FindFirstChildOfClass("SurfaceGui")
+                    if glow then
+                        glow:Destroy()
+                    end
+                end
+            end
+            spinParts = {}
+        end
+    end)
+end
+
+spinButton.MouseButton1Click:Connect(function()
+    spinEnabled = not spinEnabled
+    spinButton.Text = "Visual Spin: " .. (spinEnabled and "ON" or "OFF")
+    setSpin(spinEnabled)
 end)
 
 ----------------------
@@ -353,57 +475,79 @@ jumpButton.MouseButton1Click:Connect(function()
     setJump(jumpEnabled)
 end)
 
-----------------------
--- Развлекательные функции --
-----------------------
-local spinButton = CreateButton("Visual Spin: OFF", 10, funTab)
-local spinEnabled = false
-local spinSpeed = 5
-local spinParts = {}
-local spinConnections = {}
+-- Анти-смерть
+local antiDieButton = CreateButton("Anti Die: OFF", 110, mainTab)
+local antiDieEnabled = false
+local antiDieConnections = {}
 
-local function setSpin(enabled)
+local function setAntiDie(enabled)
     SafeCall(function()
         local character = player.Character
         if not character then return end
         
+        local humanoid = character:FindFirstChild("Humanoid")
+        if not humanoid then return end
+        
         if enabled then
-            -- Собираем все части для кручения
-            spinParts = {}
+            -- Сохраняем оригинальное здоровье
+            humanoid.MaxHealth = math.huge
+            humanoid.Health = math.huge
             
-            for _, part in pairs(character:GetDescendants()) do
-                if part:IsA("BasePart") and part ~= character:FindFirstChild("HumanoidRootPart") then
-                    table.insert(spinParts, part)
+            -- Защита от урона
+            local function preventDamage()
+                humanoid:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
+                humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+                
+                if humanoid.Health < humanoid.MaxHealth then
+                    humanoid.Health = humanoid.MaxHealth
                 end
             end
             
-            -- Создаем эффект кручения для каждой части
-            for _, part in pairs(spinParts) do
-                local spinConn = RunService.Heartbeat:Connect(function(delta)
-                    if part and part.Parent then
-                        part.CFrame = part.CFrame * CFrame.Angles(0, math.rad(spinSpeed), 0)
-                    end
-                end)
-                table.insert(spinConnections, spinConn)
-            end
+            -- Подключаем обработчики
+            table.insert(antiDieConnections, humanoid.HealthChanged:Connect(function()
+                if humanoid.Health < humanoid.MaxHealth then
+                    humanoid.Health = humanoid.MaxHealth
+                end
+            end))
+            
+            table.insert(antiDieConnections, RunService.Heartbeat:Connect(preventDamage))
+            
+            -- Защита от удаления персонажа
+            table.insert(antiDieConnections, character.AncestryChanged:Connect(function()
+                if not character.Parent then
+                    local newChar = player.Character or player.CharacterAdded:Wait()
+                    setAntiDie(true) -- Повторно активируем для нового персонажа
+                end
+            end))
         else
-            -- Останавливаем все соединения
-            for _, conn in pairs(spinConnections) do
+            -- Отключаем все обработчики
+            for _, conn in pairs(antiDieConnections) do
                 conn:Disconnect()
             end
-            spinConnections = {}
-            spinParts = {}
+            antiDieConnections = {}
+            
+            -- Восстанавливаем стандартные настройки
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.Dead, true)
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
+            
+            if humanoid.MaxHealth > 100 then
+                humanoid.MaxHealth = 100
+                humanoid.Health = 100
+            end
         end
     end)
 end
 
-spinButton.MouseButton1Click:Connect(function()
-    spinEnabled = not spinEnabled
-    spinButton.Text = "Visual Spin: " .. (spinEnabled and "ON" or "OFF")
-    setSpin(spinEnabled)
+antiDieButton.MouseButton1Click:Connect(function()
+    antiDieEnabled = not antiDieEnabled
+    antiDieButton.Text = "Anti Die: " .. (antiDieEnabled and "ON" or "OFF")
+    setAntiDie(antiDieEnabled)
 end)
 
-local bigHeadButton = CreateButton("Huge Head: OFF", 60, funTab)
+----------------------
+-- Развлекательные функции --
+----------------------
+local bigHeadButton = CreateButton("Huge Head: OFF", 10, funTab)
 local bigHeadEnabled = false
 local originalHeadSize = Vector3.new(1, 1, 1)
 local headScale = 3 -- Огромная голова
@@ -478,6 +622,11 @@ local function handleCharacter(character)
             originalJumpPower = humanoid.JumpPower
             humanoid.JumpPower = originalJumpPower * jumpMultiplier
         end
+        
+        -- Восстанавливаем анти-смерть
+        if antiDieEnabled then
+            setAntiDie(true)
+        end
     end
     
     -- Восстанавливаем ESP
@@ -514,4 +663,4 @@ if player.Character then
 end
 updateESP()
 
-print("Markus Script v3.8 loaded! "..(isMobile and "Tap M button" or "Press M key"))
+print("Markus Script v3.9 loaded! "..(isMobile and "Tap M button" or "Press M key"))
