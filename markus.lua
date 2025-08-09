@@ -1,4 +1,4 @@
--- Markus Script v1.3 (ESP + Fly)
+-- Markus Script v1.4 (Fixed ESP + Slow Fly)
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -33,7 +33,7 @@ Instance.new("UICorner", activateBtn).CornerRadius = UDim.new(1, 0)
 
 -- Главное меню
 local mainFrame = Instance.new("Frame", screenGui)
-mainFrame.Size = UDim2.new(0, 250, 0, 350)
+mainFrame.Size = UDim2.new(0, 250, 0, 200)
 mainFrame.Position = UDim2.new(0.5, -125, 0.5, 200) -- Начальная позиция (скрыто)
 mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 mainFrame.Visible = false
@@ -44,7 +44,7 @@ local tweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quad)
 
 -- Заголовок
 local title = Instance.new("TextLabel", mainFrame)
-title.Text = "MARKUS SCRIPT v1.3"
+title.Text = "MARKUS SCRIPT v1.4"
 title.Size = UDim2.new(1, 0, 0, 30)
 title.Font = Enum.Font.GothamBold
 title.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -71,7 +71,7 @@ local function toggleMenu()
     
     if menuVisible then
         mainFrame.Visible = true
-        TweenService:Create(mainFrame, tweenInfo, {Position = UDim2.new(0.5, -125, 0.5, -175)}):Play()
+        TweenService:Create(mainFrame, tweenInfo, {Position = UDim2.new(0.5, -125, 0.5, -100)}):Play()
     else
         TweenService:Create(mainFrame, tweenInfo, {Position = UDim2.new(0.5, -125, 0.5, 200)}):Play()
         task.delay(0.3, function() mainFrame.Visible = false end)
@@ -100,7 +100,7 @@ local function createESP(character)
     highlight.Name = "MarkusESP"
     highlight.Adornee = character
     highlight.OutlineColor = Color3.fromRGB(255, 50, 50)
-    highlight.FillColor = Color3.fromRGB(255, 0, 0, 0.1)
+    highlight.FillTransparency = 1 -- Полностью прозрачная заливка
     highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
     highlight.Parent = character
     
@@ -119,32 +119,28 @@ espButton.MouseButton1Click:Connect(function()
     espButton.Text = "ESP: " .. (espEnabled and "ON" or "OFF")
     
     if espEnabled then
-        -- Существующие игроки
+        -- Обработка всех игроков
         for _, plr in pairs(Players:GetPlayers()) do
             if plr ~= player and plr.Character then
                 createESP(plr.Character)
             end
-        end
-        
-        -- Новые игроки
-        Players.PlayerAdded:Connect(function(plr)
             plr.CharacterAdded:Connect(function(char)
                 if espEnabled then
                     createESP(char)
                 end
             end)
-        end)
+        end
     else
         clearESP()
     end
 end)
 
 ----------------------
--- УЛУЧШЕННЫЙ ПОЛЕТ --
+-- МЕДЛЕННЫЙ ПОЛЕТ --
 ----------------------
 local flyButton = CreateButton("FLY: OFF", 85, Color3.fromRGB(0, 100, 255))
-local flySpeed = 50 -- Настройка скорости
 local flyEnabled = false
+local flySpeed = 16 -- Фиксированная скорость (как бег)
 local flyConn
 
 local function startFlying()
@@ -152,9 +148,9 @@ local function startFlying()
     local humanoid = character:WaitForChild("Humanoid")
     humanoid.PlatformStand = true
     
-    local bodyGyro = Instance.new("BodyGyro", character.HumanoidRootPart)
-    bodyGyro.P = 1000
-    bodyGyro.MaxTorque = Vector3.new(1, 1, 1) * 10000
+    local bodyVelocity = Instance.new("BodyVelocity", character.HumanoidRootPart)
+    bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+    bodyVelocity.MaxForce = Vector3.new(1, 1, 1) * 10000
     
     flyConn = RunService.Heartbeat:Connect(function()
         if not flyEnabled then return end
@@ -162,19 +158,15 @@ local function startFlying()
         local root = character.HumanoidRootPart
         local cam = Workspace.CurrentCamera.CFrame.LookVector
         
-        -- Управление
+        -- Управление (медленное)
         local direction = Vector3.new()
         if UserInputService:IsKeyDown(Enum.KeyCode.W) then direction += cam end
         if UserInputService:IsKeyDown(Enum.KeyCode.S) then direction -= cam end
         if UserInputService:IsKeyDown(Enum.KeyCode.D) then direction += CFrame.new(cam).RightVector end
         if UserInputService:IsKeyDown(Enum.KeyCode.A) then direction -= CFrame.new(cam).RightVector end
         
-        -- Применение движения
-        if direction.Magnitude > 0 then
-            root.Velocity = direction.Unit * flySpeed
-        else
-            root.Velocity = Vector3.new(0, 0, 0)
-        end
+        -- Плавное движение
+        bodyVelocity.Velocity = direction.Unit * flySpeed
     end)
 end
 
@@ -190,17 +182,10 @@ flyButton.MouseButton1Click:Connect(function()
         if character then
             character.Humanoid.PlatformStand = false
             for _, v in pairs(character.HumanoidRootPart:GetChildren()) do
-                if v:IsA("BodyGyro") then v:Destroy() end
+                if v:IsA("BodyVelocity") then v:Destroy() end
             end
         end
     end
-end)
-
--- Инфо
-CreateButton("Speed: "..flySpeed, 130).MouseButton1Click:Connect(function()
-    flySpeed = flySpeed + 10
-    if flySpeed > 100 then flySpeed = 20 end
-    flyButton.Text = "Speed: "..flySpeed
 end)
 
 print("Markus Script loaded! Press M to toggle menu")
