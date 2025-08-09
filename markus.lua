@@ -1,4 +1,4 @@
--- Markus Script v4.2 (PC + Mobile)
+-- Markus Script v4.3 (PC + Mobile)
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -60,7 +60,7 @@ Instance.new("UICorner", activateBtn).CornerRadius = UDim.new(1, 0)
 
 -- Главное меню
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = isMobile and UDim2.new(0, 300, 0, 400) or UDim2.new(0, 250, 0, 350)
+mainFrame.Size = isMobile and UDim2.new(0, 300, 0, 450) or UDim2.new(0, 250, 0, 400)
 mainFrame.Position = UDim2.new(0.5, isMobile and -150 or -125, 0.5, 200)
 mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 mainFrame.Visible = false
@@ -72,7 +72,7 @@ local tweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quad)
 
 -- Заголовок
 local title = Instance.new("TextLabel")
-title.Text = "MARKUS SCRIPT v4.2"
+title.Text = "MARKUS SCRIPT v4.3"
 title.Size = UDim2.new(1, 0, 0, 20)
 title.Position = UDim2.new(0, 0, 1, -25)
 title.Font = Enum.Font.GothamBold
@@ -259,7 +259,7 @@ local function toggleMenu()
     if menuVisible then
         mainFrame.Visible = true
         TweenService:Create(mainFrame, tweenInfo, {
-            Position = UDim2.new(0.5, isMobile and -150 or -125, 0.5, isMobile and -200 or -175)
+            Position = UDim2.new(0.5, isMobile and -150 or -125, 0.5, isMobile and -225 or -200)
         }):Play()
     else
         TweenService:Create(mainFrame, tweenInfo, {
@@ -374,13 +374,13 @@ end)
 ----------------------
 -- Основные функции --
 ----------------------
--- Jump Boost с регулировкой
-local jumpBoostSlider = CreateSlider("Jump Power: 50", 10, mainTab, 20, 200, 50)
-local jumpBoostEnabled = false
-local originalJumpPower = 50
-local jumpConnection
+-- Speed Hack с регулировкой
+local speedSlider = CreateSlider("Speed: 16", 10, mainTab, 16, 100, 16)
+local speedEnabled = false
+local originalWalkSpeed = 16
+local speedConnection
 
-local function setJumpBoost(enabled)
+local function setSpeed(enabled)
     SafeCall(function()
         local character = player.Character
         if not character then return end
@@ -389,33 +389,65 @@ local function setJumpBoost(enabled)
         if not humanoid then return end
         
         if enabled then
-            originalJumpPower = humanoid.JumpPower
-            humanoid.JumpPower = jumpBoostSlider.getValue()
+            originalWalkSpeed = humanoid.WalkSpeed
+            humanoid.WalkSpeed = speedSlider.getValue()
             
-            jumpConnection = humanoid:GetPropertyChangedSignal("JumpPower"):Connect(function()
-                if humanoid.JumpPower ~= jumpBoostSlider.getValue() then
-                    humanoid.JumpPower = jumpBoostSlider.getValue()
+            speedConnection = humanoid:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
+                if humanoid.WalkSpeed ~= speedSlider.getValue() then
+                    humanoid.WalkSpeed = speedSlider.getValue()
                 end
             end)
         else
-            if jumpConnection then
-                jumpConnection:Disconnect()
-                jumpConnection = nil
+            if speedConnection then
+                speedConnection:Disconnect()
+                speedConnection = nil
             end
-            humanoid.JumpPower = originalJumpPower
+            humanoid.WalkSpeed = originalWalkSpeed
         end
     end)
 end
 
-local jumpBoostButton = CreateButton("Jump Boost: OFF", 80, mainTab)
-jumpBoostButton.MouseButton1Click:Connect(function()
-    jumpBoostEnabled = not jumpBoostEnabled
-    jumpBoostButton.Text = "Jump Boost: " .. (jumpBoostEnabled and "ON" or "OFF")
-    setJumpBoost(jumpBoostEnabled)
+local speedButton = CreateButton("Speed: OFF", 80, mainTab)
+speedButton.MouseButton1Click:Connect(function()
+    speedEnabled = not speedEnabled
+    speedButton.Text = "Speed: " .. (speedEnabled and "ON" or "OFF")
+    setSpeed(speedEnabled)
+end)
+
+-- Бесконечный прыжок (Inf Jump)
+local infJumpButton = CreateButton("Inf Jump: OFF", 150, mainTab)
+local infJumpEnabled = false
+local infJumpConnection
+
+local function setInfJump(enabled)
+    SafeCall(function()
+        if enabled then
+            infJumpConnection = UserInputService.JumpRequest:Connect(function()
+                local character = player.Character
+                if not character then return end
+                
+                local humanoid = character:FindFirstChild("Humanoid")
+                if humanoid then
+                    humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                end
+            end)
+        else
+            if infJumpConnection then
+                infJumpConnection:Disconnect()
+                infJumpConnection = nil
+            end
+        end
+    end)
+end
+
+infJumpButton.MouseButton1Click:Connect(function()
+    infJumpEnabled = not infJumpEnabled
+    infJumpButton.Text = "Inf Jump: " .. (infJumpEnabled and "ON" or "OFF")
+    setInfJump(infJumpEnabled)
 end)
 
 -- No Hit (неуязвимость)
-local noHitButton = CreateButton("No Hit: OFF", 150, mainTab)
+local noHitButton = CreateButton("No Hit: OFF", 220, mainTab)
 local noHitEnabled = false
 local noHitConnection
 
@@ -447,7 +479,7 @@ noHitButton.MouseButton1Click:Connect(function()
 end)
 
 -- Aimbot (прицеливание на паутину)
-local aimbotButton = CreateButton("Aimbot: OFF", 220, mainTab)
+local aimbotButton = CreateButton("Aimbot: OFF", 290, mainTab)
 local aimbotEnabled = false
 local aimbotConnection
 
@@ -833,12 +865,14 @@ end)
 local function handleCharacter(character)
     task.wait(1) -- Даем время для полной загрузки персонажа
     
-    -- Восстанавливаем прыжок
-    local humanoid = character:FindFirstChild("Humanoid")
-    if humanoid then
-        if jumpBoostEnabled then
-            setJumpBoost(true)
-        end
+    -- Восстанавливаем скорость
+    if speedEnabled then
+        setSpeed(true)
+    end
+    
+    -- Восстанавливаем бесконечный прыжок
+    if infJumpEnabled then
+        setInfJump(true)
     end
     
     -- Восстанавливаем ESP и Chams
@@ -891,4 +925,4 @@ if player.Character then
 end
 updateESP()
 
-print("Markus Script v4.2 loaded! "..(isMobile and "Tap M button" or "Press M key"))
+print("Markus Script v4.3 loaded! "..(isMobile and "Tap M button" or "Press M
