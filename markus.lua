@@ -1,4 +1,4 @@
--- Markus Script v4.0 (PC + Mobile)
+-- Markus Script v4.1 (PC + Mobile)
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -43,7 +43,7 @@ local buttonSize = isMobile and UDim2.new(0, 70, 0, 70) or UDim2.new(0, 50, 0, 5
 local buttonPos = isMobile and UDim2.new(0, 20, 1, -90) or UDim2.new(0, 20, 0.5, -25)
 local buttonTextSize = isMobile and 30 or 24
 
--- Кнопка активации (черная с белой "M")
+-- Кнопка активации
 local activateBtn = Instance.new("TextButton")
 activateBtn.Name = "ActivateButton"
 activateBtn.Size = buttonSize
@@ -58,9 +58,9 @@ activateBtn.ZIndex = 10
 activateBtn.Parent = screenGui
 Instance.new("UICorner", activateBtn).CornerRadius = UDim.new(1, 0)
 
--- Главное меню (черное)
+-- Главное меню
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = isMobile and UDim2.new(0, 300, 0, 300) or UDim2.new(0, 250, 0, 250)
+mainFrame.Size = isMobile and UDim2.new(0, 300, 0, 350) or UDim2.new(0, 250, 0, 300)
 mainFrame.Position = UDim2.new(0.5, isMobile and -150 or -125, 0.5, 200)
 mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 mainFrame.Visible = false
@@ -70,9 +70,9 @@ Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 8)
 -- Анимация
 local tweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quad)
 
--- Заголовок (внизу)
+-- Заголовок
 local title = Instance.new("TextLabel")
-title.Text = "MARKUS SCRIPT v4.0"
+title.Text = "MARKUS SCRIPT v4.1"
 title.Size = UDim2.new(1, 0, 0, 20)
 title.Position = UDim2.new(0, 0, 1, -25)
 title.Font = Enum.Font.GothamBold
@@ -114,7 +114,7 @@ end
 
 -- Создаем вкладки
 local visualTab = CreateTab("Visual", UDim2.new(0, 5, 0, 5))
-local mainTab = CreateTab("Osnovnoe", UDim2.new(0.33, 5, 0, 5))
+local mainTab = CreateTab("Main", UDim2.new(0.33, 5, 0, 5))
 local funTab = CreateTab("Fun", UDim2.new(0.66, 5, 0, 5))
 
 -- Функция переключения вкладок
@@ -130,10 +130,8 @@ local function SwitchTab(tabName)
     end
 end
 
--- Активируем первую вкладку
 SwitchTab("Visual")
 
--- Подключаем обработчики вкладок
 for name, btn in pairs(tabButtons) do
     btn.MouseButton1Click:Connect(function()
         SwitchTab(name)
@@ -143,7 +141,7 @@ end
 -- Функция создания кнопок
 local function CreateButton(text, yPos, parentFrame)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0.9, 0, 0, isMobile and 50 or 35)
+    btn.Size = UDim2.new(0.9, 0, 0, isMobile and 45 or 35)
     btn.Position = UDim2.new(0.05, 0, 0, yPos)
     btn.Text = text
     btn.Font = Enum.Font.Gotham
@@ -158,7 +156,7 @@ end
 -- Функция создания слайдера
 local function CreateSlider(text, yPos, parentFrame, minValue, maxValue, defaultValue)
     local sliderFrame = Instance.new("Frame")
-    sliderFrame.Size = UDim2.new(0.9, 0, 0, isMobile and 70 or 50)
+    sliderFrame.Size = UDim2.new(0.9, 0, 0, isMobile and 60 or 50)
     sliderFrame.Position = UDim2.new(0.05, 0, 0, yPos)
     sliderFrame.BackgroundTransparency = 1
     sliderFrame.Parent = parentFrame
@@ -199,15 +197,17 @@ local function CreateSlider(text, yPos, parentFrame, minValue, maxValue, default
     
     local handle = Instance.new("TextButton")
     handle.Size = UDim2.new(0, 20, 0, 20)
-    handle.Position = UDim2.new((defaultValue - minValue)/(maxValue - minValue), -5, 0, -5)
+    handle.Position = UDim2.new((defaultValue - minValue)/(maxValue - minValue), -10, 0, -5)
     handle.Text = ""
     handle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     handle.Parent = slider
     Instance.new("UICorner", handle).CornerRadius = UDim.new(1, 0)
     
     local dragging = false
+    
     local function updateValue(x)
-        local ratio = math.clamp((x - slider.AbsolutePosition.X) / slider.AbsoluteSize.X, 0, 1)
+        local absoluteX = x - slider.AbsolutePosition.X
+        local ratio = math.clamp(absoluteX / slider.AbsoluteSize.X, 0, 1)
         local value = math.floor(minValue + (maxValue - minValue) * ratio)
         valueLabel.Text = tostring(value)
         fill.Size = UDim2.new(ratio, 0, 1, 0)
@@ -219,14 +219,16 @@ local function CreateSlider(text, yPos, parentFrame, minValue, maxValue, default
         dragging = true
     end)
     
+    slider.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            updateValue(input.Position.X)
+        end
+    end)
+    
     UserInputService.InputEnded:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
             dragging = false
         end
-    end)
-    
-    slider.MouseButton1Down:Connect(function(x, y)
-        updateValue(x)
     end)
     
     UserInputService.InputChanged:Connect(function(input)
@@ -239,6 +241,12 @@ local function CreateSlider(text, yPos, parentFrame, minValue, maxValue, default
         frame = sliderFrame,
         getValue = function()
             return tonumber(valueLabel.Text)
+        end,
+        setValue = function(newValue)
+            local ratio = (newValue - minValue)/(maxValue - minValue)
+            valueLabel.Text = tostring(newValue)
+            fill.Size = UDim2.new(ratio, 0, 1, 0)
+            handle.Position = UDim2.new(ratio, -10, 0, -5)
         end
     }
 end
@@ -251,7 +259,7 @@ local function toggleMenu()
     if menuVisible then
         mainFrame.Visible = true
         TweenService:Create(mainFrame, tweenInfo, {
-            Position = UDim2.new(0.5, isMobile and -150 or -125, 0.5, isMobile and -150 or -125)
+            Position = UDim2.new(0.5, isMobile and -150 or -125, 0.5, isMobile and -175 or -150)
         }):Play()
     else
         TweenService:Create(mainFrame, tweenInfo, {
@@ -261,7 +269,6 @@ local function toggleMenu()
     end
 end
 
--- Управление
 activateBtn.MouseButton1Click:Connect(toggleMenu)
 if isPC then
     UserInputService.InputBegan:Connect(function(input)
@@ -283,7 +290,7 @@ local function createESP(character)
     
     SafeCall(function()
         local highlight = Instance.new("Highlight")
-        highlight.Name = "MarkusESP_"..tostring(os.time())
+        highlight.Name = "MarkusESP"
         highlight.Adornee = character
         highlight.OutlineColor = Color3.fromRGB(0, 150, 255)
         highlight.FillTransparency = 1
@@ -360,7 +367,7 @@ local function setJumpBoost(enabled)
     end)
 end
 
-local jumpBoostButton = CreateButton("Jump Boost: OFF", 90, mainTab)
+local jumpBoostButton = CreateButton("Jump Boost: OFF", 80, mainTab)
 jumpBoostButton.MouseButton1Click:Connect(function()
     jumpBoostEnabled = not jumpBoostEnabled
     jumpBoostButton.Text = "Jump Boost: " .. (jumpBoostEnabled and "ON" or "OFF")
@@ -385,16 +392,16 @@ local function setSpeed(enabled)
         if enabled then
             -- Проверяем наличие Spring Coil
             local springCoil = nil
-            for _, tool in pairs(character:GetChildren()) do
-                if tool:IsA("Tool") and tool.Name:lower():find("spring") then
+            for _, tool in pairs(player.Backpack:GetChildren()) do
+                if tool:IsA("Tool") and (tool.Name:lower():find("spring") or tool.Name:lower():find("coil")) then
                     springCoil = tool
                     break
                 end
             end
             
             if not springCoil then
-                for _, tool in pairs(player.Backpack:GetChildren()) do
-                    if tool:IsA("Tool") and tool.Name:lower():find("spring") then
+                for _, tool in pairs(character:GetChildren()) do
+                    if tool:IsA("Tool") and (tool.Name:lower():find("spring") or tool.Name:lower():find("coil")) then
                         springCoil = tool
                         break
                     end
@@ -405,9 +412,13 @@ local function setSpeed(enabled)
                 springCoil.Parent = character
             else
                 warn("Spring Coil not found in inventory!")
-                speedButton.Text = "Speed: NO SPRING"
+                speedButton.Text = "Speed: NO TOOL"
                 task.delay(2, function()
-                    speedButton.Text = "Speed: OFF"
+                    if speedEnabled then
+                        speedButton.Text = "Speed: ON"
+                    else
+                        speedButton.Text = "Speed: OFF"
+                    end
                 end)
                 return
             end
@@ -445,11 +456,10 @@ end)
 ----------------------
 -- Развлекательные функции --
 ----------------------
--- Визуальный спин (плавное вращение)
+-- Визуальный спин
 local spinButton = CreateButton("Visual Spin: OFF", 10, funTab)
 local spinEnabled = false
 local spinSpeed = 5
-local spinParts = {}
 local spinConnections = {}
 
 local function setSpin(enabled)
@@ -458,31 +468,29 @@ local function setSpin(enabled)
         if not character then return end
         
         if enabled then
-            -- Собираем все части для кручения
-            spinParts = {}
+            -- Останавливаем предыдущие соединения
+            for _, conn in pairs(spinConnections) do
+                conn:Disconnect()
+            end
+            spinConnections = {}
             
-            for _, part in pairs(character:GetDescendants()) do
-                if part:IsA("BasePart") and part ~= character:FindFirstChild("HumanoidRootPart") then
-                    table.insert(spinParts, part)
+            -- Создаем эффект кручения
+            local rootPart = character:FindFirstChild("HumanoidRootPart")
+            if not rootPart then return end
+            
+            local spinConn = RunService.Heartbeat:Connect(function(delta)
+                if rootPart and rootPart.Parent then
+                    rootPart.CFrame = rootPart.CFrame * CFrame.Angles(0, math.rad(spinSpeed), 0)
                 end
-            end
+            end)
             
-            -- Создаем эффект кручения для каждой части
-            for _, part in pairs(spinParts) do
-                local spinConn = RunService.Heartbeat:Connect(function(delta)
-                    if part and part.Parent then
-                        part.CFrame = part.CFrame * CFrame.Angles(0, math.rad(spinSpeed * delta * 60), 0)
-                    end
-                end)
-                table.insert(spinConnections, spinConn)
-            end
+            table.insert(spinConnections, spinConn)
         else
             -- Останавливаем все соединения
             for _, conn in pairs(spinConnections) do
                 conn:Disconnect()
             end
             spinConnections = {}
-            spinParts = {}
         end
     end)
 end
@@ -495,7 +503,7 @@ end)
 
 -- Обработчики персонажа
 local function handleCharacter(character)
-    task.wait(0.5)
+    task.wait(1) -- Даем время для полной загрузки персонажа
     
     -- Восстанавливаем скорость
     if speedEnabled then
@@ -531,7 +539,7 @@ Players.PlayerAdded:Connect(function(plr)
             createESP(char)
         end
     end)
-end
+end)
 
 -- Первоначальная загрузка
 if player.Character then
@@ -539,4 +547,4 @@ if player.Character then
 end
 updateESP()
 
-print("Markus Script v4.0 loaded! "..(isMobile and "Tap M button" or "Press M key"))
+print("Markus Script v4.1 loaded! "..(isMobile and "Tap M button" or "Press M key"))
