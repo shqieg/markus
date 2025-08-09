@@ -1,4 +1,4 @@
--- Markus Script v4.1 (PC + Mobile)
+-- Markus Script v4.2 (PC + Mobile)
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -60,7 +60,7 @@ Instance.new("UICorner", activateBtn).CornerRadius = UDim.new(1, 0)
 
 -- Главное меню
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = isMobile and UDim2.new(0, 300, 0, 350) or UDim2.new(0, 250, 0, 300)
+mainFrame.Size = isMobile and UDim2.new(0, 300, 0, 400) or UDim2.new(0, 250, 0, 350)
 mainFrame.Position = UDim2.new(0.5, isMobile and -150 or -125, 0.5, 200)
 mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 mainFrame.Visible = false
@@ -72,7 +72,7 @@ local tweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quad)
 
 -- Заголовок
 local title = Instance.new("TextLabel")
-title.Text = "MARKUS SCRIPT v4.1"
+title.Text = "MARKUS SCRIPT v4.2"
 title.Size = UDim2.new(1, 0, 0, 20)
 title.Position = UDim2.new(0, 0, 1, -25)
 title.Font = Enum.Font.GothamBold
@@ -259,7 +259,7 @@ local function toggleMenu()
     if menuVisible then
         mainFrame.Visible = true
         TweenService:Create(mainFrame, tweenInfo, {
-            Position = UDim2.new(0.5, isMobile and -150 or -125, 0.5, isMobile and -175 or -150)
+            Position = UDim2.new(0.5, isMobile and -150 or -125, 0.5, isMobile and -200 or -175)
         }):Play()
     else
         TweenService:Create(mainFrame, tweenInfo, {
@@ -285,6 +285,10 @@ local espButton = CreateButton("ESP: OFF", 10, visualTab)
 local espEnabled = false
 local espCache = {}
 
+local chamsButton = CreateButton("Chams: OFF", 70, visualTab)
+local chamsEnabled = false
+local chamsCache = {}
+
 local function createESP(character)
     if not character or character == player.Character then return end
     
@@ -301,6 +305,23 @@ local function createESP(character)
     end)
 end
 
+local function createChams(character)
+    if not character or character == player.Character then return end
+    
+    SafeCall(function()
+        local highlight = Instance.new("Highlight")
+        highlight.Name = "MarkusChams"
+        highlight.Adornee = character
+        highlight.OutlineColor = Color3.fromRGB(255, 0, 0)
+        highlight.FillColor = Color3.fromRGB(255, 0, 0)
+        highlight.FillTransparency = 0.5
+        highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+        highlight.Parent = character
+        
+        table.insert(chamsCache, highlight)
+    end)
+end
+
 local function clearESP()
     SafeCall(function()
         for _, esp in pairs(espCache) do
@@ -312,13 +333,26 @@ local function clearESP()
     end)
 end
 
+local function clearChams()
+    SafeCall(function()
+        for _, chams in pairs(chamsCache) do
+            if chams and chams.Parent then
+                chams:Destroy()
+            end
+        end
+        chamsCache = {}
+    end)
+end
+
 local function updateESP()
     SafeCall(function()
         clearESP()
-        if espEnabled then
+        clearChams()
+        if espEnabled or chamsEnabled then
             for _, plr in pairs(Players:GetPlayers()) do
                 if plr ~= player and plr.Character then
-                    createESP(plr.Character)
+                    if espEnabled then createESP(plr.Character) end
+                    if chamsEnabled then createChams(plr.Character) end
                 end
             end
         end
@@ -328,6 +362,12 @@ end
 espButton.MouseButton1Click:Connect(function()
     espEnabled = not espEnabled
     espButton.Text = "ESP: " .. (espEnabled and "ON" or "OFF")
+    updateESP()
+end)
+
+chamsButton.MouseButton1Click:Connect(function()
+    chamsEnabled = not chamsEnabled
+    chamsButton.Text = "Chams: " .. (chamsEnabled and "ON" or "OFF")
     updateESP()
 end)
 
@@ -374,14 +414,12 @@ jumpBoostButton.MouseButton1Click:Connect(function()
     setJumpBoost(jumpBoostEnabled)
 end)
 
--- Speed с использованием Spring Coil
-local speedButton = CreateButton("Speed: OFF", 150, mainTab)
-local speedEnabled = false
-local originalWalkSpeed = 16
-local speedMultiplier = 2
-local speedConnection
+-- No Hit (неуязвимость)
+local noHitButton = CreateButton("No Hit: OFF", 150, mainTab)
+local noHitEnabled = false
+local noHitConnection
 
-local function setSpeed(enabled)
+local function setNoHit(enabled)
     SafeCall(function()
         local character = player.Character
         if not character then return end
@@ -390,67 +428,131 @@ local function setSpeed(enabled)
         if not humanoid then return end
         
         if enabled then
-            -- Проверяем наличие Spring Coil
-            local springCoil = nil
-            for _, tool in pairs(player.Backpack:GetChildren()) do
-                if tool:IsA("Tool") and (tool.Name:lower():find("spring") or tool.Name:lower():find("coil")) then
-                    springCoil = tool
-                    break
-                end
-            end
-            
-            if not springCoil then
-                for _, tool in pairs(character:GetChildren()) do
-                    if tool:IsA("Tool") and (tool.Name:lower():find("spring") or tool.Name:lower():find("coil")) then
-                        springCoil = tool
-                        break
-                    end
-                end
-            end
-            
-            if springCoil then
-                springCoil.Parent = character
-            else
-                warn("Spring Coil not found in inventory!")
-                speedButton.Text = "Speed: NO TOOL"
-                task.delay(2, function()
-                    if speedEnabled then
-                        speedButton.Text = "Speed: ON"
-                    else
-                        speedButton.Text = "Speed: OFF"
-                    end
-                end)
-                return
-            end
-            
-            -- Устанавливаем скорость
-            originalWalkSpeed = humanoid.WalkSpeed
-            humanoid.WalkSpeed = originalWalkSpeed * speedMultiplier
-            
-            -- Следим за изменениями скорости
-            speedConnection = humanoid:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
-                if humanoid.WalkSpeed ~= originalWalkSpeed * speedMultiplier then
-                    humanoid.WalkSpeed = originalWalkSpeed * speedMultiplier
-                end
+            noHitConnection = humanoid.Touched:Connect(function()
+                humanoid.Health = humanoid.MaxHealth
             end)
         else
-            -- Восстанавливаем скорость
-            if speedConnection then
-                speedConnection:Disconnect()
-                speedConnection = nil
-            end
-            
-            if humanoid then
-                humanoid.WalkSpeed = originalWalkSpeed
+            if noHitConnection then
+                noHitConnection:Disconnect()
+                noHitConnection = nil
             end
         end
     end)
 end
 
-speedButton.MouseButton1Click:Connect(function()
-    speedEnabled = not speedEnabled
-    speedButton.Text = "Speed: " .. (speedEnabled and "ON" or "OFF")
-    setSpeed(speedEnabled)
+noHitButton.MouseButton1Click:Connect(function()
+    noHitEnabled = not noHitEnabled
+    noHitButton.Text = "No Hit: " .. (noHitEnabled and "ON" or "OFF")
+    setNoHit(noHitEnabled)
+end)
+
+-- Aimbot (прицеливание на паутину)
+local aimbotButton = CreateButton("Aimbot: OFF", 220, mainTab)
+local aimbotEnabled = false
+local aimbotConnection
+
+local function findWebShooter()
+    local character = player.Character
+    if not character then return nil end
+    
+    for _, tool in pairs(character:GetChildren()) do
+        if tool:IsA("Tool") and (tool.Name:lower():find("web") or tool.Name:lower():find("shooter")) then
+            return tool
+        end
+    end
+    
+    for _, tool in pairs(player.Backpack:GetChildren()) do
+        if tool:IsA("Tool") and (tool.Name:lower():find("web") or tool.Name:lower():find("shooter")) then
+            return tool
+        end
+    end
+    
+    return nil
+end
+
+local function getClosestPlayer()
+    local closestPlayer = nil
+    local closestDistance = math.huge
+    local character = player.Character
+    if not character then return nil end
+    
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not rootPart then return nil end
+    
+    for _, plr in pairs(Players:GetPlayers()) do
+        if plr ~= player and plr.Character then
+            local targetRoot = plr.Character:FindFirstChild("HumanoidRootPart")
+            if targetRoot then
+                local distance = (rootPart.Position - targetRoot.Position).Magnitude
+                if distance < closestDistance then
+                    closestDistance = distance
+                    closestPlayer = plr
+                end
+            end
+        end
+    end
+    
+    return closestPlayer
+end
+
+local function setAimbot(enabled)
+    SafeCall(function()
+        if enabled then
+            aimbotConnection = UserInputService.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 or (isMobile and input.UserInputType == Enum.UserInputType.Touch) then
+                    local webShooter = findWebShooter()
+                    if not webShooter then
+                        warn("Web shooter not found!")
+                        return
+                    end
+                    
+                    local targetPlayer = getClosestPlayer()
+                    if not targetPlayer or not targetPlayer.Character then return end
+                    
+                    local targetRoot = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    if not targetRoot then return end
+                    
+                    -- Активируем инструмент
+                    webShooter.Parent = player.Character
+                    
+                    -- Наводимся на цель
+                    local humanoid = player.Character:FindFirstChild("Humanoid")
+                    if humanoid then
+                        humanoid:ChangeState(Enum.HumanoidStateType.Running)
+                        task.wait(0.1)
+                        humanoid:ChangeState(Enum.HumanoidStateType.RunningNoPhysics)
+                    end
+                    
+                    -- Поворачиваем персонажа к цели
+                    local rootPart = player.Character:FindFirstChild("HumanoidRootPart")
+                    if rootPart then
+                        local direction = (targetRoot.Position - rootPart.Position).Unit
+                        rootPart.CFrame = CFrame.new(rootPart.Position, rootPart.Position + Vector3.new(direction.X, 0, direction.Z))
+                    end
+                    
+                    -- Используем инструмент
+                    webShooter:Activate()
+                    
+                    -- Возвращаем управление
+                    if humanoid then
+                        task.wait(0.2)
+                        humanoid:ChangeState(Enum.HumanoidStateType.Running)
+                    end
+                end
+            end)
+        else
+            if aimbotConnection then
+                aimbotConnection:Disconnect()
+                aimbotConnection = nil
+            end
+        end
+    end)
+end
+
+aimbotButton.MouseButton1Click:Connect(function()
+    aimbotEnabled = not aimbotEnabled
+    aimbotButton.Text = "Aimbot: " .. (aimbotEnabled and "ON" or "OFF")
+    setAimbot(aimbotEnabled)
 end)
 
 ----------------------
@@ -501,14 +603,235 @@ spinButton.MouseButton1Click:Connect(function()
     setSpin(spinEnabled)
 end)
 
+-- Большая голова
+local bigHeadButton = CreateButton("Big Head: OFF", 70, funTab)
+local bigHeadEnabled = false
+local originalHeadScale = Vector3.new(1, 1, 1)
+local headScale = Vector3.new(2, 2, 2) -- Увеличение в 2 раза
+
+local function setBigHead(enabled)
+    SafeCall(function()
+        local character = player.Character
+        if not character then return end
+        
+        local head = character:FindFirstChild("Head")
+        if not head then return end
+        
+        if enabled then
+            originalHeadScale = head.Size
+            head.Size = headScale
+        else
+            head.Size = originalHeadScale
+        end
+    end)
+end
+
+bigHeadButton.MouseButton1Click:Connect(function()
+    bigHeadEnabled = not bigHeadEnabled
+    bigHeadButton.Text = "Big Head: " .. (bigHeadEnabled and "ON" or "OFF")
+    setBigHead(bigHeadEnabled)
+end)
+
+-- Fly
+local flyButton = CreateButton("Fly: OFF", 130, funTab)
+local flyEnabled = false
+local flySpeed = 50
+local flyConnections = {}
+local bodyVelocity
+
+local function setFly(enabled)
+    SafeCall(function()
+        local character = player.Character
+        if not character then return end
+        
+        local humanoid = character:FindFirstChild("Humanoid")
+        if not humanoid then return end
+        
+        if enabled then
+            -- Останавливаем предыдущие соединения
+            for _, conn in pairs(flyConnections) do
+                conn:Disconnect()
+            end
+            flyConnections = {}
+            
+            -- Создаем BodyVelocity для полета
+            bodyVelocity = Instance.new("BodyVelocity")
+            bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+            bodyVelocity.MaxForce = Vector3.new(0, 0, 0)
+            bodyVelocity.P = 1000
+            bodyVelocity.Parent = character:FindFirstChild("HumanoidRootPart") or character:WaitForChild("HumanoidRootPart")
+            
+            -- Управление полетом
+            local flyForward = false
+            local flyBackward = false
+            local flyLeft = false
+            local flyRight = false
+            local flyUp = false
+            local flyDown = false
+            
+            -- Обработчики ввода для ПК
+            if isPC then
+                local keyConn = UserInputService.InputBegan:Connect(function(input)
+                    if input.KeyCode == Enum.KeyCode.W then flyForward = true end
+                    if input.KeyCode == Enum.KeyCode.S then flyBackward = true end
+                    if input.KeyCode == Enum.KeyCode.A then flyLeft = true end
+                    if input.KeyCode == Enum.KeyCode.D then flyRight = true end
+                    if input.KeyCode == Enum.KeyCode.Space then flyUp = true end
+                    if input.KeyCode == Enum.KeyCode.LeftShift then flyDown = true end
+                end)
+                
+                local keyEndConn = UserInputService.InputEnded:Connect(function(input)
+                    if input.KeyCode == Enum.KeyCode.W then flyForward = false end
+                    if input.KeyCode == Enum.KeyCode.S then flyBackward = false end
+                    if input.KeyCode == Enum.KeyCode.A then flyLeft = false end
+                    if input.KeyCode == Enum.KeyCode.D then flyRight = false end
+                    if input.KeyCode == Enum.KeyCode.Space then flyUp = false end
+                    if input.KeyCode == Enum.KeyCode.LeftShift then flyDown = false end
+                end)
+                
+                table.insert(flyConnections, keyConn)
+                table.insert(flyConnections, keyEndConn)
+            end
+            
+            -- Обработчики ввода для мобильных устройств
+            if isMobile then
+                -- Создаем кнопки управления полетом
+                local flyControls = Instance.new("Frame")
+                flyControls.Size = UDim2.new(1, 0, 1, 0)
+                flyControls.BackgroundTransparency = 1
+                flyControls.Parent = screenGui
+                
+                -- Кнопки WASD
+                local upBtn = Instance.new("TextButton")
+                upBtn.Size = UDim2.new(0, 80, 0, 80)
+                upBtn.Position = UDim2.new(0.5, -40, 0.8, -160)
+                upBtn.Text = "↑"
+                upBtn.Font = Enum.Font.GothamBold
+                upBtn.TextSize = 30
+                upBtn.BackgroundTransparency = 0.7
+                upBtn.Parent = flyControls
+                
+                local downBtn = Instance.new("TextButton")
+                downBtn.Size = UDim2.new(0, 80, 0, 80)
+                downBtn.Position = UDim2.new(0.5, -40, 0.8, -40)
+                downBtn.Text = "↓"
+                downBtn.Font = Enum.Font.GothamBold
+                downBtn.TextSize = 30
+                downBtn.BackgroundTransparency = 0.7
+                downBtn.Parent = flyControls
+                
+                local leftBtn = Instance.new("TextButton")
+                leftBtn.Size = UDim2.new(0, 80, 0, 80)
+                leftBtn.Position = UDim2.new(0.3, -40, 0.8, -100)
+                leftBtn.Text = "←"
+                leftBtn.Font = Enum.Font.GothamBold
+                leftBtn.TextSize = 30
+                leftBtn.BackgroundTransparency = 0.7
+                leftBtn.Parent = flyControls
+                
+                local rightBtn = Instance.new("TextButton")
+                rightBtn.Size = UDim2.new(0, 80, 0, 80)
+                rightBtn.Position = UDim2.new(0.7, -40, 0.8, -100)
+                rightBtn.Text = "→"
+                rightBtn.Font = Enum.Font.GothamBold
+                rightBtn.TextSize = 30
+                rightBtn.BackgroundTransparency = 0.7
+                rightBtn.Parent = flyControls
+                
+                -- Кнопки вверх/вниз
+                local ascendBtn = Instance.new("TextButton")
+                ascendBtn.Size = UDim2.new(0, 80, 0, 80)
+                ascendBtn.Position = UDim2.new(0.9, -40, 0.8, -160)
+                ascendBtn.Text = "↑"
+                ascendBtn.Font = Enum.Font.GothamBold
+                ascendBtn.TextSize = 30
+                ascendBtn.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+                ascendBtn.BackgroundTransparency = 0.7
+                ascendBtn.Parent = flyControls
+                
+                local descendBtn = Instance.new("TextButton")
+                descendBtn.Size = UDim2.new(0, 80, 0, 80)
+                descendBtn.Position = UDim2.new(0.9, -40, 0.8, -40)
+                descendBtn.Text = "↓"
+                descendBtn.Font = Enum.Font.GothamBold
+                descendBtn.TextSize = 30
+                descendBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+                descendBtn.BackgroundTransparency = 0.7
+                descendBtn.Parent = flyControls
+                
+                -- Обработчики кнопок
+                upBtn.MouseButton1Down:Connect(function() flyForward = true end)
+                upBtn.MouseButton1Up:Connect(function() flyForward = false end)
+                downBtn.MouseButton1Down:Connect(function() flyBackward = true end)
+                downBtn.MouseButton1Up:Connect(function() flyBackward = false end)
+                leftBtn.MouseButton1Down:Connect(function() flyLeft = true end)
+                leftBtn.MouseButton1Up:Connect(function() flyLeft = false end)
+                rightBtn.MouseButton1Down:Connect(function() flyRight = true end)
+                rightBtn.MouseButton1Up:Connect(function() flyRight = false end)
+                ascendBtn.MouseButton1Down:Connect(function() flyUp = true end)
+                ascendBtn.MouseButton1Up:Connect(function() flyUp = false end)
+                descendBtn.MouseButton1Down:Connect(function() flyDown = true end)
+                descendBtn.MouseButton1Up:Connect(function() flyDown = false end)
+                
+                table.insert(flyConnections, flyControls)
+            end
+            
+            -- Обновление полета
+            local flyConn = RunService.Heartbeat:Connect(function()
+                if not bodyVelocity or not bodyVelocity.Parent then return end
+                
+                local rootPart = character:FindFirstChild("HumanoidRootPart")
+                if not rootPart then return end
+                
+                local camera = workspace.CurrentCamera
+                local cf = camera.CFrame
+                local direction = Vector3.new()
+                
+                if flyForward then direction = direction + cf.LookVector end
+                if flyBackward then direction = direction - cf.LookVector end
+                if flyLeft then direction = direction - cf.RightVector end
+                if flyRight then direction = direction + cf.RightVector end
+                if flyUp then direction = direction + Vector3.new(0, 1, 0) end
+                if flyDown then direction = direction - Vector3.new(0, 1, 0) end
+                
+                direction = direction.Unit * flySpeed
+                bodyVelocity.Velocity = direction
+                bodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
+            end)
+            
+            table.insert(flyConnections, flyConn)
+        else
+            -- Останавливаем все соединения
+            for _, conn in pairs(flyConnections) do
+                conn:Disconnect()
+            end
+            flyConnections = {}
+            
+            -- Удаляем BodyVelocity
+            if bodyVelocity then
+                bodyVelocity:Destroy()
+                bodyVelocity = nil
+            end
+            
+            -- Удаляем кнопки управления (для мобильных)
+            for _, child in pairs(screenGui:GetChildren()) do
+                if child:IsA("Frame") and child.Name == "" then
+                    child:Destroy()
+                end
+            end
+        end
+    end)
+end
+
+flyButton.MouseButton1Click:Connect(function()
+    flyEnabled = not flyEnabled
+    flyButton.Text = "Fly: " .. (flyEnabled and "ON" or "OFF")
+    setFly(flyEnabled)
+end)
+
 -- Обработчики персонажа
 local function handleCharacter(character)
     task.wait(1) -- Даем время для полной загрузки персонажа
-    
-    -- Восстанавливаем скорость
-    if speedEnabled then
-        setSpeed(true)
-    end
     
     -- Восстанавливаем прыжок
     local humanoid = character:FindFirstChild("Humanoid")
@@ -518,8 +841,8 @@ local function handleCharacter(character)
         end
     end
     
-    -- Восстанавливаем ESP
-    if espEnabled then
+    -- Восстанавливаем ESP и Chams
+    if espEnabled or chamsEnabled then
         task.wait(1)
         updateESP()
     end
@@ -528,15 +851,36 @@ local function handleCharacter(character)
     if spinEnabled then
         setSpin(true)
     end
+    
+    -- Восстанавливаем большую голову
+    if bigHeadEnabled then
+        setBigHead(true)
+    end
+    
+    -- Восстанавливаем полет
+    if flyEnabled then
+        setFly(true)
+    end
+    
+    -- Восстанавливаем неуязвимость
+    if noHitEnabled then
+        setNoHit(true)
+    end
+    
+    -- Восстанавливаем аимбот
+    if aimbotEnabled then
+        setAimbot(true)
+    end
 end
 
 player.CharacterAdded:Connect(handleCharacter)
 
--- Автообновление ESP
+-- Автообновление ESP и Chams
 Players.PlayerAdded:Connect(function(plr)
     plr.CharacterAdded:Connect(function(char)
-        if espEnabled then
-            createESP(char)
+        if espEnabled or chamsEnabled then
+            if espEnabled then createESP(char) end
+            if chamsEnabled then createChams(char) end
         end
     end)
 end)
@@ -547,4 +891,4 @@ if player.Character then
 end
 updateESP()
 
-print("Markus Script v4.1 loaded! "..(isMobile and "Tap M button" or "Press M key"))
+print("Markus Script v4.2 loaded! "..(isMobile and "Tap M button" or "Press M key"))
