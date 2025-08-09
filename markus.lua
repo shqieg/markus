@@ -1,7 +1,7 @@
--- Markus Script v1.1 (ESP Edition)
+-- Markus Script v1.2 (Toggle UI)
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local Workspace = game:GetService("Workspace")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -11,29 +11,45 @@ if playerGui:FindFirstChild("MarkusScriptUI") then
     playerGui.MarkusScriptUI:Destroy()
 end
 
--- Создаем интерфейс
+-- Создаем основной GUI
 local screenGui = Instance.new("ScreenGui", playerGui)
 screenGui.Name = "MarkusScriptUI"
 screenGui.ResetOnSpawn = false
 
--- Главное окно
+-- Кнопка активации (буква M)
+local activateBtn = Instance.new("TextButton", screenGui)
+activateBtn.Name = "ActivateButton"
+activateBtn.Size = UDim2.new(0, 50, 0, 50)
+activateBtn.Position = UDim2.new(0, 20, 0.5, -25)
+activateBtn.Text = "M"
+activateBtn.Font = Enum.Font.GothamBlack
+activateBtn.TextSize = 24
+activateBtn.TextColor3 = Color3.new(1, 1, 1)
+activateBtn.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+activateBtn.BackgroundTransparency = 0.5
+activateBtn.ZIndex = 10
+Instance.new("UICorner", activateBtn).CornerRadius = UDim.new(1, 0)
+
+-- Главное меню (изначально скрыто)
 local mainFrame = Instance.new("Frame", screenGui)
 mainFrame.Size = UDim2.new(0, 250, 0, 300)
 mainFrame.Position = UDim2.new(0.5, -125, 0.5, -150)
 mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-mainFrame.Active = true
-mainFrame.Draggable = true
+mainFrame.Visible = false
 Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 8)
+
+-- Анимация твина
+local tweenInfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad)
 
 -- Заголовок
 local title = Instance.new("TextLabel", mainFrame)
-title.Text = "MARKUS SCRIPT v1.1"
+title.Text = "MARKUS SCRIPT"
 title.Size = UDim2.new(1, 0, 0, 30)
 title.Font = Enum.Font.GothamBold
 title.TextColor3 = Color3.fromRGB(255, 255, 255)
 title.BackgroundTransparency = 1
 
--- Кнопка ESP
+-- Кнопка ESP (пример функции)
 local espButton = Instance.new("TextButton", mainFrame)
 espButton.Size = UDim2.new(0.9, 0, 0, 40)
 espButton.Position = UDim2.new(0.05, 0, 0, 40)
@@ -43,108 +59,48 @@ espButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 espButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 Instance.new("UICorner", espButton).CornerRadius = UDim.new(0, 6)
 
--- Логика ESP
-local espEnabled = false
-local espCache = {}
-
-local function createESP(character)
-    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-    local head = character:FindFirstChild("Head")
+-- Логика переключения меню
+local menuVisible = false
+local function toggleMenu()
+    menuVisible = not menuVisible
     
-    if not humanoidRootPart or not head then return end
-    
-    -- Бокс вокруг игрока
-    local box = Instance.new("BoxHandleAdornment")
-    box.Name = "MarkusESPBox"
-    box.Adornee = humanoidRootPart
-    box.AlwaysOnTop = true
-    box.Size = humanoidRootPart.Size + Vector3.new(0.1, 0.1, 0.1)
-    box.Transparency = 0.7
-    box.Color3 = Color3.fromRGB(0, 255, 255)
-    box.ZIndex = 10
-    box.Parent = humanoidRootPart
-    
-    -- Тэг с именем
-    local billboard = Instance.new("BillboardGui")
-    billboard.Name = "MarkusESPTag"
-    billboard.Adornee = head
-    billboard.Size = UDim2.new(0, 100, 0, 40)
-    billboard.StudsOffset = Vector3.new(0, 3, 0)
-    billboard.AlwaysOnTop = true
-    
-    local tagText = Instance.new("TextLabel", billboard)
-    tagText.Text = character.Parent.Name
-    tagText.Size = UDim2.new(1, 0, 1, 0)
-    tagText.Font = Enum.Font.GothamBold
-    tagText.TextSize = 14
-    tagText.TextColor3 = Color3.fromRGB(255, 255, 255)
-    tagText.BackgroundTransparency = 1
-    
-    billboard.Parent = head
-    
-    table.insert(espCache, {box, billboard})
-end
-
-local function clearESP()
-    for _, objects in pairs(espCache) do
-        for _, obj in pairs(objects) do
-            if obj and obj.Parent then
-                obj:Destroy()
-            end
-        end
+    if menuVisible then
+        mainFrame.Visible = true
+        local tween = TweenService:Create(
+            mainFrame,
+            tweenInfo,
+            {Position = UDim2.new(0.5, -125, 0.5, -150)}
+        )
+        tween:Play()
+    else
+        local tween = TweenService:Create(
+            mainFrame,
+            tweenInfo,
+            {Position = UDim2.new(0.5, -125, 0.5, 200)}
+        )
+        tween.Completed:Connect(function()
+            mainFrame.Visible = false
+        end)
+        tween:Play()
     end
-    espCache = {}
 end
 
-local function toggleESP()
+-- Управление
+activateBtn.MouseButton1Click:Connect(toggleMenu)
+
+-- Горячая клавиша M
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if not gameProcessed and input.KeyCode == Enum.KeyCode.M then
+        toggleMenu()
+    end
+end)
+
+-- Пример ESP (упрощенный)
+local espEnabled = false
+espButton.MouseButton1Click:Connect(function()
     espEnabled = not espEnabled
     espButton.Text = "ESP: " .. (espEnabled and "ON" or "OFF")
-    
-    if espEnabled then
-        -- Обработка существующих игроков
-        for _, plr in pairs(Players:GetPlayers()) do
-            if plr ~= player and plr.Character then
-                createESP(plr.Character)
-            end
-        end
-        
-        -- Обработка новых игроков
-        Players.PlayerAdded:Connect(function(plr)
-            plr.CharacterAdded:Connect(function(char)
-                if espEnabled then
-                    createESP(char)
-                end
-            end)
-        end)
-        
-        -- Обработка своего персонажа при респавне
-        player.CharacterAdded:Connect(function(char)
-            if espEnabled then
-                for _, obj in pairs(char:GetDescendants()) do
-                    if obj.Name == "MarkusESPBox" or obj.Name == "MarkusESPTag" then
-                        obj:Destroy()
-                    end
-                end
-            end
-        end)
-    else
-        clearESP()
-    end
-end
-
-espButton.MouseButton1Click:Connect(toggleESP)
-
--- Кнопка закрытия
-local closeButton = Instance.new("TextButton", mainFrame)
-closeButton.Size = UDim2.new(0, 30, 0, 30)
-closeButton.Position = UDim2.new(1, -35, 0, 5)
-closeButton.Text = "X"
-closeButton.Font = Enum.Font.GothamBold
-closeButton.TextColor3 = Color3.fromRGB(255, 0, 0)
-closeButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-closeButton.MouseButton1Click:Connect(function()
-    screenGui:Destroy()
+    -- Здесь должна быть логика ESP
 end)
-Instance.new("UICorner", closeButton).CornerRadius = UDim.new(0, 6)
 
-print("Markus Script loaded! Created by shqieg")
+print("Markus Script loaded! Press M to toggle menu")
