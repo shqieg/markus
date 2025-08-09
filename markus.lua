@@ -241,7 +241,7 @@ end)
 local speedButton = CreateButton("Speed: OFF", 10, mainTab)
 local speedEnabled = false
 local originalWalkSpeed = 16
-local speedMultiplier = 1.5 -- Увеличение скорости на 50%
+local speedMultiplier = 3 -- Увеличение скорости на 50%
 
 local function setSpeed(enabled)
     SafeCall(function()
