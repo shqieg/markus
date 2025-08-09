@@ -1,4 +1,4 @@
--- Markus Script v3.7 (PC + Mobile)
+-- Markus Script v3.8 (PC + Mobile)
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -70,12 +70,13 @@ Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 8)
 -- Анимация
 local tweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quad)
 
--- Заголовок
+-- Заголовок (внизу)
 local title = Instance.new("TextLabel")
-title.Text = "MARKUS SCRIPT v3.7"
-title.Size = UDim2.new(1, 0, 0, 40)
+title.Text = "MARKUS SCRIPT v3.8"
+title.Size = UDim2.new(1, 0, 0, 20)
+title.Position = UDim2.new(0, 0, 1, -25)
 title.Font = Enum.Font.GothamBold
-title.TextSize = isMobile and 20 or 16
+title.TextSize = isMobile and 14 or 12
 title.TextColor3 = Color3.fromRGB(255, 255, 255)
 title.BackgroundTransparency = 1
 title.Parent = mainFrame
@@ -99,7 +100,7 @@ local function CreateTab(name, position)
     
     local tabFrame = Instance.new("Frame")
     tabFrame.Name = name.."Frame"
-    tabFrame.Size = UDim2.new(1, 0, 1, -40)
+    tabFrame.Size = UDim2.new(1, 0, 1, -55) -- Уменьшили высоту из-за заголовка внизу
     tabFrame.Position = UDim2.new(0, 0, 0, 40)
     tabFrame.BackgroundTransparency = 1
     tabFrame.Visible = false
@@ -152,106 +153,6 @@ local function CreateButton(text, yPos, parentFrame)
     btn.Parent = parentFrame
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
     return btn
-end
-
--- Функция создания слайдера
-local function CreateSlider(text, yPos, parentFrame, minValue, maxValue, defaultValue)
-    local sliderFrame = Instance.new("Frame")
-    sliderFrame.Size = UDim2.new(0.9, 0, 0, isMobile and 60 or 45)
-    sliderFrame.Position = UDim2.new(0.05, 0, 0, yPos)
-    sliderFrame.BackgroundTransparency = 1
-    sliderFrame.Parent = parentFrame
-    
-    local label = Instance.new("TextLabel")
-    label.Text = text
-    label.Size = UDim2.new(1, 0, 0, 20)
-    label.Font = Enum.Font.Gotham
-    label.TextSize = isMobile and 14 or 12
-    label.TextColor3 = Color3.new(1, 1, 1)
-    label.BackgroundTransparency = 1
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.Parent = sliderFrame
-    
-    local valueLabel = Instance.new("TextLabel")
-    valueLabel.Text = tostring(defaultValue)
-    valueLabel.Size = UDim2.new(0, 40, 0, 20)
-    valueLabel.Position = UDim2.new(1, -40, 0, 0)
-    valueLabel.Font = Enum.Font.Gotham
-    valueLabel.TextSize = isMobile and 14 or 12
-    valueLabel.TextColor3 = Color3.new(1, 1, 1)
-    valueLabel.BackgroundTransparency = 1
-    valueLabel.TextXAlignment = Enum.TextXAlignment.Right
-    valueLabel.Parent = sliderFrame
-    
-    local slider = Instance.new("Frame")
-    slider.Size = UDim2.new(1, 0, 0, 10)
-    slider.Position = UDim2.new(0, 0, 0, 25)
-    slider.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-    slider.Parent = sliderFrame
-    Instance.new("UICorner", slider).CornerRadius = UDim.new(1, 0)
-    
-    local fill = Instance.new("Frame")
-    fill.Size = UDim2.new((defaultValue - minValue)/(maxValue - minValue), 0, 1, 0)
-    fill.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
-    fill.Parent = slider
-    Instance.new("UICorner", fill).CornerRadius = UDim.new(1, 0)
-    
-    local handle = Instance.new("TextButton")
-    handle.Size = UDim2.new(0, 20, 0, 20)
-    handle.Position = UDim2.new((defaultValue - minValue)/(maxValue - minValue), -10, 0.5, -10)
-    handle.Text = ""
-    handle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    handle.Parent = slider
-    Instance.new("UICorner", handle).CornerRadius = UDim.new(1, 0)
-    
-    local dragging = false
-    local currentValue = defaultValue
-    
-    local function updateValue(value)
-        value = math.clamp(value, minValue, maxValue)
-        currentValue = value
-        valueLabel.Text = string.format("%.1f", value)
-        fill.Size = UDim2.new((value - minValue)/(maxValue - minValue), 0, 1, 0)
-        handle.Position = UDim2.new((value - minValue)/(maxValue - minValue), -10, 0.5, -10)
-        return value
-    end
-    
-    handle.MouseButton1Down:Connect(function()
-        dragging = true
-    end)
-    
-    UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = false
-        end
-    end)
-    
-    slider.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
-            local pos = input.Position.X - slider.AbsolutePosition.X
-            local value = minValue + (pos / slider.AbsoluteSize.X) * (maxValue - minValue)
-            updateValue(value)
-        end
-    end)
-    
-    if UserInputService.MouseEnabled then
-        game:GetService("RunService").RenderStepped:Connect(function()
-            if dragging then
-                local pos = UserInputService:GetMouseLocation().X - slider.AbsolutePosition.X
-                local value = minValue + (pos / slider.AbsoluteSize.X) * (maxValue - minValue)
-                updateValue(value)
-            end
-        end)
-    end
-    
-    return {
-        GetValue = function() return currentValue end,
-        SetValue = function(value) updateValue(value) end,
-        Changed = handle.MouseButton1Up:Connect(function()
-            dragging = false
-        end)
-    }
 end
 
 -- Переключение меню
@@ -338,7 +239,82 @@ end)
 ----------------------
 -- Основные функции --
 ----------------------
-local jumpButton = CreateButton("2x Jump: OFF", 10, mainTab)
+local speedButton = CreateButton("Speed: OFF", 10, mainTab)
+local speedEnabled = false
+local originalWalkSpeed = 16
+local speedMultiplier = 1.5
+local fakeSpringTool = nil
+local speedConnection
+
+local function createFakeSpringTool()
+    if fakeSpringTool and fakeSpringTool.Parent then
+        fakeSpringTool:Destroy()
+    end
+    
+    fakeSpringTool = Instance.new("Tool")
+    fakeSpringTool.Name = "Spring"
+    fakeSpringTool.Grip = CFrame.new(0, 0, 0.5) * CFrame.Angles(math.pi/2, 0, 0)
+    
+    local handle = Instance.new("Part")
+    handle.Name = "Handle"
+    handle.Size = Vector3.new(1, 1, 1)
+    handle.Transparency = 1
+    handle.CanCollide = false
+    handle.Anchored = false
+    handle.Parent = fakeSpringTool
+    
+    fakeSpringTool.Parent = player.Character or player.Backpack
+end
+
+local function setSpeed(enabled)
+    SafeCall(function()
+        local character = player.Character
+        if not character then return end
+        
+        local humanoid = character:FindFirstChild("Humanoid")
+        if not humanoid then return end
+        
+        if enabled then
+            -- Создаем фейковую пружинку
+            createFakeSpringTool()
+            
+            -- Устанавливаем скорость
+            originalWalkSpeed = humanoid.WalkSpeed
+            humanoid.WalkSpeed = originalWalkSpeed * speedMultiplier
+            
+            -- Следим за изменениями скорости
+            speedConnection = humanoid:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
+                if humanoid.WalkSpeed ~= originalWalkSpeed * speedMultiplier then
+                    humanoid.WalkSpeed = originalWalkSpeed * speedMultiplier
+                end
+            end)
+        else
+            -- Удаляем фейковую пружинку
+            if fakeSpringTool then
+                fakeSpringTool:Destroy()
+                fakeSpringTool = nil
+            end
+            
+            -- Восстанавливаем скорость
+            if speedConnection then
+                speedConnection:Disconnect()
+                speedConnection = nil
+            end
+            
+            if humanoid then
+                humanoid.WalkSpeed = originalWalkSpeed
+            end
+        end
+    end)
+end
+
+speedButton.MouseButton1Click:Connect(function()
+    speedEnabled = not speedEnabled
+    speedButton.Text = "Speed: " .. (speedEnabled and "ON" or "OFF")
+    setSpeed(speedEnabled)
+end)
+
+local jumpButton = CreateButton("2x Jump: OFF", 60, mainTab)
 local jumpEnabled = false
 local originalJumpPower = 50
 local jumpMultiplier = 2
@@ -355,6 +331,7 @@ local function setJump(enabled)
         if enabled then
             originalJumpPower = humanoid.JumpPower
             humanoid.JumpPower = originalJumpPower * jumpMultiplier
+            
             jumpConnection = humanoid:GetPropertyChangedSignal("JumpPower"):Connect(function()
                 if humanoid.JumpPower ~= originalJumpPower * jumpMultiplier then
                     humanoid.JumpPower = originalJumpPower * jumpMultiplier
@@ -379,20 +356,57 @@ end)
 ----------------------
 -- Развлекательные функции --
 ----------------------
-local spinButton = CreateButton("Spin: OFF", 10, funTab)
+local spinButton = CreateButton("Visual Spin: OFF", 10, funTab)
 local spinEnabled = false
 local spinSpeed = 5
-local spinConnection
+local spinParts = {}
+local spinConnections = {}
 
-local spinSlider = CreateSlider("Spin Speed", 60, funTab, 1, 20, spinSpeed)
-spinSlider.Changed:Connect(function()
-    spinSpeed = spinSlider.GetValue()
+local function setSpin(enabled)
+    SafeCall(function()
+        local character = player.Character
+        if not character then return end
+        
+        if enabled then
+            -- Собираем все части для кручения
+            spinParts = {}
+            
+            for _, part in pairs(character:GetDescendants()) do
+                if part:IsA("BasePart") and part ~= character:FindFirstChild("HumanoidRootPart") then
+                    table.insert(spinParts, part)
+                end
+            end
+            
+            -- Создаем эффект кручения для каждой части
+            for _, part in pairs(spinParts) do
+                local spinConn = RunService.Heartbeat:Connect(function(delta)
+                    if part and part.Parent then
+                        part.CFrame = part.CFrame * CFrame.Angles(0, math.rad(spinSpeed), 0)
+                    end
+                end)
+                table.insert(spinConnections, spinConn)
+            end
+        else
+            -- Останавливаем все соединения
+            for _, conn in pairs(spinConnections) do
+                conn:Disconnect()
+            end
+            spinConnections = {}
+            spinParts = {}
+        end
+    end)
+end
+
+spinButton.MouseButton1Click:Connect(function()
+    spinEnabled = not spinEnabled
+    spinButton.Text = "Visual Spin: " .. (spinEnabled and "ON" or "OFF")
+    setSpin(spinEnabled)
 end)
 
-local bigHeadButton = CreateButton("Big Head: OFF", 120, funTab)
+local bigHeadButton = CreateButton("Huge Head: OFF", 60, funTab)
 local bigHeadEnabled = false
 local originalHeadSize = Vector3.new(1, 1, 1)
-local headScale = 2
+local headScale = 3 -- Огромная голова
 local headParts = {}
 
 local function setBigHead(enabled)
@@ -442,44 +456,20 @@ local function setBigHead(enabled)
     end)
 end
 
-local function setSpin(enabled)
-    SafeCall(function()
-        local character = player.Character
-        if not character then return end
-        
-        local root = character:FindFirstChild("HumanoidRootPart")
-        if not root then return end
-        
-        if enabled then
-            spinConnection = RunService.Heartbeat:Connect(function(delta)
-                if root then
-                    root.CFrame = root.CFrame * CFrame.Angles(0, math.rad(spinSpeed), 0)
-                end
-            end)
-        else
-            if spinConnection then
-                spinConnection:Disconnect()
-                spinConnection = nil
-            end
-        end
-    end)
-end
-
-spinButton.MouseButton1Click:Connect(function()
-    spinEnabled = not spinEnabled
-    spinButton.Text = "Spin: " .. (spinEnabled and "ON" or "OFF")
-    setSpin(spinEnabled)
-end)
-
 bigHeadButton.MouseButton1Click:Connect(function()
     bigHeadEnabled = not bigHeadEnabled
-    bigHeadButton.Text = "Big Head: " .. (bigHeadEnabled and "ON" or "OFF")
+    bigHeadButton.Text = "Huge Head: " .. (bigHeadEnabled and "ON" or "OFF")
     setBigHead(bigHeadEnabled)
 end)
 
 -- Обработчики персонажа
 local function handleCharacter(character)
     task.wait(0.5)
+    
+    -- Восстанавливаем скорость
+    if speedEnabled then
+        setSpeed(true)
+    end
     
     -- Восстанавливаем прыжок
     local humanoid = character:FindFirstChild("Humanoid")
@@ -524,4 +514,4 @@ if player.Character then
 end
 updateESP()
 
-print("Markus Script v3.7 loaded! "..(isMobile and "Tap M button" or "Press M key"))
+print("Markus Script v3.8 loaded! "..(isMobile and "Tap M button" or "Press M key"))
