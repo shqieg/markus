@@ -1,4 +1,4 @@
--- Markus Script v3.6 (PC + Mobile)
+-- Markus Script v3.7 (PC + Mobile)
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -72,7 +72,7 @@ local tweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quad)
 
 -- Заголовок
 local title = Instance.new("TextLabel")
-title.Text = "MARKUS SCRIPT v3.6"
+title.Text = "MARKUS SCRIPT v3.7"
 title.Size = UDim2.new(1, 0, 0, 40)
 title.Font = Enum.Font.GothamBold
 title.TextSize = isMobile and 20 or 16
@@ -228,6 +228,7 @@ local function CreateSlider(text, yPos, parentFrame, minValue, maxValue, default
     
     slider.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
             local pos = input.Position.X - slider.AbsolutePosition.X
             local value = minValue + (pos / slider.AbsoluteSize.X) * (maxValue - minValue)
             updateValue(value)
@@ -247,7 +248,9 @@ local function CreateSlider(text, yPos, parentFrame, minValue, maxValue, default
     return {
         GetValue = function() return currentValue end,
         SetValue = function(value) updateValue(value) end,
-        Changed = handle.MouseButton1Up
+        Changed = handle.MouseButton1Up:Connect(function()
+            dragging = false
+        end)
     }
 end
 
@@ -335,13 +338,13 @@ end)
 ----------------------
 -- Основные функции --
 ----------------------
-local speedButton = CreateButton("Speed: OFF", 10, mainTab)
-local speedEnabled = false
-local originalWalkSpeed = 16
-local speedMultiplier = 1.5
-local speedConnection
+local jumpButton = CreateButton("2x Jump: OFF", 10, mainTab)
+local jumpEnabled = false
+local originalJumpPower = 50
+local jumpMultiplier = 2
+local jumpConnection
 
-local function setSpeed(enabled)
+local function setJump(enabled)
     SafeCall(function()
         local character = player.Character
         if not character then return end
@@ -350,26 +353,27 @@ local function setSpeed(enabled)
         if not humanoid then return end
         
         if enabled then
-            humanoid.WalkSpeed = originalWalkSpeed * speedMultiplier
-            speedConnection = humanoid:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
-                if humanoid.WalkSpeed ~= originalWalkSpeed * speedMultiplier then
-                    humanoid.WalkSpeed = originalWalkSpeed * speedMultiplier
+            originalJumpPower = humanoid.JumpPower
+            humanoid.JumpPower = originalJumpPower * jumpMultiplier
+            jumpConnection = humanoid:GetPropertyChangedSignal("JumpPower"):Connect(function()
+                if humanoid.JumpPower ~= originalJumpPower * jumpMultiplier then
+                    humanoid.JumpPower = originalJumpPower * jumpMultiplier
                 end
             end)
         else
-            if speedConnection then
-                speedConnection:Disconnect()
-                speedConnection = nil
+            if jumpConnection then
+                jumpConnection:Disconnect()
+                jumpConnection = nil
             end
-            humanoid.WalkSpeed = originalWalkSpeed
+            humanoid.JumpPower = originalJumpPower
         end
     end)
 end
 
-speedButton.MouseButton1Click:Connect(function()
-    speedEnabled = not speedEnabled
-    speedButton.Text = "Speed: " .. (speedEnabled and "ON" or "OFF")
-    setSpeed(speedEnabled)
+jumpButton.MouseButton1Click:Connect(function()
+    jumpEnabled = not jumpEnabled
+    jumpButton.Text = "2x Jump: " .. (jumpEnabled and "ON" or "OFF")
+    setJump(jumpEnabled)
 end)
 
 ----------------------
@@ -384,6 +388,59 @@ local spinSlider = CreateSlider("Spin Speed", 60, funTab, 1, 20, spinSpeed)
 spinSlider.Changed:Connect(function()
     spinSpeed = spinSlider.GetValue()
 end)
+
+local bigHeadButton = CreateButton("Big Head: OFF", 120, funTab)
+local bigHeadEnabled = false
+local originalHeadSize = Vector3.new(1, 1, 1)
+local headScale = 2
+local headParts = {}
+
+local function setBigHead(enabled)
+    SafeCall(function()
+        local character = player.Character
+        if not character then return end
+        
+        if enabled then
+            -- Сохраняем оригинальные размеры
+            headParts = {}
+            
+            -- Находим все части головы
+            for _, part in pairs(character:GetDescendants()) do
+                if part:IsA("BasePart") and (part.Name:lower():find("head") or part.Parent:IsA("Accessory")) then
+                    table.insert(headParts, {
+                        part = part,
+                        originalSize = part.Size,
+                        originalMesh = part:FindFirstChildOfClass("SpecialMesh")
+                    })
+                    
+                    -- Увеличиваем размер
+                    part.Size = part.Size * headScale
+                    
+                    -- Увеличиваем меш если есть
+                    local mesh = part:FindFirstChildOfClass("SpecialMesh")
+                    if mesh then
+                        mesh.Scale = mesh.Scale * headScale
+                    end
+                end
+            end
+        else
+            -- Восстанавливаем оригинальные размеры
+            for _, data in pairs(headParts) do
+                if data.part and data.part.Parent then
+                    data.part.Size = data.originalSize
+                    
+                    if data.originalMesh then
+                        local mesh = data.part:FindFirstChildOfClass("SpecialMesh")
+                        if mesh then
+                            mesh.Scale = data.originalMesh.Scale
+                        end
+                    end
+                end
+            end
+            headParts = {}
+        end
+    end)
+end
 
 local function setSpin(enabled)
     SafeCall(function()
@@ -414,24 +471,39 @@ spinButton.MouseButton1Click:Connect(function()
     setSpin(spinEnabled)
 end)
 
+bigHeadButton.MouseButton1Click:Connect(function()
+    bigHeadEnabled = not bigHeadEnabled
+    bigHeadButton.Text = "Big Head: " .. (bigHeadEnabled and "ON" or "OFF")
+    setBigHead(bigHeadEnabled)
+end)
+
 -- Обработчики персонажа
 local function handleCharacter(character)
     task.wait(0.5)
+    
+    -- Восстанавливаем прыжок
     local humanoid = character:FindFirstChild("Humanoid")
     if humanoid then
-        originalWalkSpeed = humanoid.WalkSpeed
-        if speedEnabled then
-            humanoid.WalkSpeed = originalWalkSpeed * speedMultiplier
+        if jumpEnabled then
+            originalJumpPower = humanoid.JumpPower
+            humanoid.JumpPower = originalJumpPower * jumpMultiplier
         end
     end
     
+    -- Восстанавливаем ESP
     if espEnabled then
         task.wait(1)
         updateESP()
     end
     
+    -- Восстанавливаем крутку
     if spinEnabled then
         setSpin(true)
+    end
+    
+    -- Восстанавливаем большую голову
+    if bigHeadEnabled then
+        setBigHead(true)
     end
 end
 
@@ -452,4 +524,4 @@ if player.Character then
 end
 updateESP()
 
-print("Markus Script v3.6 loaded! "..(isMobile and "Tap M button" or "Press M key"))
+print("Markus Script v3.7 loaded! "..(isMobile and "Tap M button" or "Press M key"))
