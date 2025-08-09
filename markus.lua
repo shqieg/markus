@@ -1,4 +1,4 @@
--- Markus Script v1.5 (Stable Flight + ESP)
+-- Markus Script v1.7 (No Rejoin + Fixed Flight)
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -34,7 +34,7 @@ Instance.new("UICorner", activateBtn).CornerRadius = UDim.new(1, 0)
 -- Главное меню
 local mainFrame = Instance.new("Frame", screenGui)
 mainFrame.Size = UDim2.new(0, 250, 0, 200)
-mainFrame.Position = UDim2.new(0.5, -125, 0.5, 200)
+mainFrame.Position = UDim2.new(0.5, -125, 0.5, 200) -- Начальная позиция (скрыто)
 mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 mainFrame.Visible = false
 Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 8)
@@ -44,7 +44,7 @@ local tweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quad)
 
 -- Заголовок
 local title = Instance.new("TextLabel", mainFrame)
-title.Text = "MARKUS SCRIPT v1.5"
+title.Text = "MARKUS SCRIPT v1.7"
 title.Size = UDim2.new(1, 0, 0, 30)
 title.Font = Enum.Font.GothamBold
 title.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -123,11 +123,6 @@ espButton.MouseButton1Click:Connect(function()
             if plr ~= player and plr.Character then
                 createESP(plr.Character)
             end
-            plr.CharacterAdded:Connect(function(char)
-                if espEnabled then
-                    createESP(char)
-                end
-            end)
         end
     else
         clearESP()
@@ -135,17 +130,20 @@ espButton.MouseButton1Click:Connect(function()
 end)
 
 ----------------------
--- СТАБИЛЬНЫЙ ПОЛЕТ --
+-- ИСПРАВЛЕННЫЙ ПОЛЕТ --
 ----------------------
 local flyButton = CreateButton("FLY: OFF", 85, Color3.fromRGB(0, 100, 255))
 local flyEnabled = false
-local flySpeed = 25 -- Оптимальная скорость
+local flySpeed = 25
 local flyConn, bodyGyro, bodyVelocity
 
 local function startFlying()
-    local character = player.Character or player.CharacterAdded:Wait()
-    local humanoid = character:WaitForChild("Humanoid")
-    local root = character:WaitForChild("HumanoidRootPart")
+    local character = player.Character
+    if not character then return end
+    
+    local humanoid = character:FindFirstChild("Humanoid")
+    local root = character:FindFirstChild("HumanoidRootPart")
+    if not humanoid or not root then return end
     
     humanoid.PlatformStand = true
     
@@ -161,9 +159,9 @@ local function startFlying()
     bodyVelocity.MaxForce = Vector3.new(1, 1, 1) * 10000
     
     flyConn = RunService.Heartbeat:Connect(function()
-        if not flyEnabled then return end
+        if not flyEnabled or not character:IsDescendantOf(workspace) then return end
         
-        local cam = Workspace.CurrentCamera.CFrame
+        local cam = workspace.CurrentCamera.CFrame
         local direction = Vector3.new()
         
         -- Управление
@@ -174,16 +172,34 @@ local function startFlying()
         if UserInputService:IsKeyDown(Enum.KeyCode.Space) then direction += Vector3.new(0, 1, 0) end
         if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then direction -= Vector3.new(0, 1, 0) end
         
-        -- Плавное движение
+        -- Применение движения
         if direction.Magnitude > 0 then
             bodyVelocity.Velocity = direction.Unit * flySpeed
         else
             bodyVelocity.Velocity = Vector3.new(0, 0, 0)
         end
         
-        -- Стабилизация поворота
+        -- Стабилизация
         bodyGyro.CFrame = cam
     end)
+end
+
+local function stopFlying()
+    if flyConn then flyConn:Disconnect() end
+    
+    local character = player.Character
+    if character then
+        local humanoid = character:FindFirstChild("Humanoid")
+        if humanoid then
+            humanoid.PlatformStand = false
+        end
+        
+        local root = character:FindFirstChild("HumanoidRootPart")
+        if root then
+            if bodyGyro then bodyGyro:Destroy() end
+            if bodyVelocity then bodyVelocity:Destroy() end
+        end
+    end
 end
 
 flyButton.MouseButton1Click:Connect(function()
@@ -193,13 +209,16 @@ flyButton.MouseButton1Click:Connect(function()
     if flyEnabled then
         startFlying()
     else
-        if flyConn then flyConn:Disconnect() end
-        local character = player.Character
-        if character then
-            character.Humanoid.PlatformStand = false
-            if bodyGyro then bodyGyro:Destroy() end
-            if bodyVelocity then bodyVelocity:Destroy() end
-        end
+        stopFlying()
+    end
+end)
+
+-- Очистка при выходе
+player.CharacterRemoving:Connect(function()
+    if flyEnabled then
+        stopFlying()
+        flyEnabled = false
+        flyButton.Text = "FLY: OFF"
     end
 end)
 
