@@ -1,4 +1,4 @@
--- Markus Script v3.9 (PC + Mobile)
+-- Markus Script v4.0 (PC + Mobile)
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -72,7 +72,7 @@ local tweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quad)
 
 -- Заголовок (внизу)
 local title = Instance.new("TextLabel")
-title.Text = "MARKUS SCRIPT v3.9"
+title.Text = "MARKUS SCRIPT v4.0"
 title.Size = UDim2.new(1, 0, 0, 20)
 title.Position = UDim2.new(0, 0, 1, -25)
 title.Font = Enum.Font.GothamBold
@@ -100,7 +100,7 @@ local function CreateTab(name, position)
     
     local tabFrame = Instance.new("Frame")
     tabFrame.Name = name.."Frame"
-    tabFrame.Size = UDim2.new(1, 0, 1, -55) -- Уменьшили высоту из-за заголовка внизу
+    tabFrame.Size = UDim2.new(1, 0, 1, -55)
     tabFrame.Position = UDim2.new(0, 0, 0, 40)
     tabFrame.BackgroundTransparency = 1
     tabFrame.Visible = false
@@ -155,6 +155,94 @@ local function CreateButton(text, yPos, parentFrame)
     return btn
 end
 
+-- Функция создания слайдера
+local function CreateSlider(text, yPos, parentFrame, minValue, maxValue, defaultValue)
+    local sliderFrame = Instance.new("Frame")
+    sliderFrame.Size = UDim2.new(0.9, 0, 0, isMobile and 70 or 50)
+    sliderFrame.Position = UDim2.new(0.05, 0, 0, yPos)
+    sliderFrame.BackgroundTransparency = 1
+    sliderFrame.Parent = parentFrame
+    
+    local label = Instance.new("TextLabel")
+    label.Text = text
+    label.Size = UDim2.new(1, 0, 0, 20)
+    label.Font = Enum.Font.Gotham
+    label.TextSize = isMobile and 14 or 12
+    label.TextColor3 = Color3.new(1, 1, 1)
+    label.BackgroundTransparency = 1
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = sliderFrame
+    
+    local valueLabel = Instance.new("TextLabel")
+    valueLabel.Text = tostring(defaultValue)
+    valueLabel.Size = UDim2.new(0, 50, 0, 20)
+    valueLabel.Position = UDim2.new(1, -50, 0, 0)
+    valueLabel.Font = Enum.Font.Gotham
+    valueLabel.TextSize = isMobile and 14 or 12
+    valueLabel.TextColor3 = Color3.new(1, 1, 1)
+    valueLabel.BackgroundTransparency = 1
+    valueLabel.TextXAlignment = Enum.TextXAlignment.Right
+    valueLabel.Parent = sliderFrame
+    
+    local slider = Instance.new("Frame")
+    slider.Size = UDim2.new(1, 0, 0, 10)
+    slider.Position = UDim2.new(0, 0, 0, 25)
+    slider.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+    slider.Parent = sliderFrame
+    Instance.new("UICorner", slider).CornerRadius = UDim.new(0, 5)
+    
+    local fill = Instance.new("Frame")
+    fill.Size = UDim2.new((defaultValue - minValue)/(maxValue - minValue), 0, 1, 0)
+    fill.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+    fill.Parent = slider
+    Instance.new("UICorner", fill).CornerRadius = UDim.new(0, 5)
+    
+    local handle = Instance.new("TextButton")
+    handle.Size = UDim2.new(0, 20, 0, 20)
+    handle.Position = UDim2.new((defaultValue - minValue)/(maxValue - minValue), -5, 0, -5)
+    handle.Text = ""
+    handle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    handle.Parent = slider
+    Instance.new("UICorner", handle).CornerRadius = UDim.new(1, 0)
+    
+    local dragging = false
+    local function updateValue(x)
+        local ratio = math.clamp((x - slider.AbsolutePosition.X) / slider.AbsoluteSize.X, 0, 1)
+        local value = math.floor(minValue + (maxValue - minValue) * ratio)
+        valueLabel.Text = tostring(value)
+        fill.Size = UDim2.new(ratio, 0, 1, 0)
+        handle.Position = UDim2.new(ratio, -10, 0, -5)
+        return value
+    end
+    
+    handle.MouseButton1Down:Connect(function()
+        dragging = true
+    end)
+    
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
+    
+    slider.MouseButton1Down:Connect(function(x, y)
+        updateValue(x)
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            updateValue(input.Position.X)
+        end
+    end)
+    
+    return {
+        frame = sliderFrame,
+        getValue = function()
+            return tonumber(valueLabel.Text)
+        end
+    }
+end
+
 -- Переключение меню
 local menuVisible = false
 local function toggleMenu()
@@ -194,13 +282,6 @@ local function createESP(character)
     if not character or character == player.Character then return end
     
     SafeCall(function()
-        -- Проверяем, есть ли уже ESP для этого персонажа
-        for _, esp in pairs(espCache) do
-            if esp and esp.Parent == character then
-                return
-            end
-        end
-        
         local highlight = Instance.new("Highlight")
         highlight.Name = "MarkusESP_"..tostring(os.time())
         highlight.Adornee = character
@@ -209,36 +290,7 @@ local function createESP(character)
         highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
         highlight.Parent = character
         
-        -- Добавляем текстовый лейбл для имени игрока
-        local playerName = Players:GetPlayerFromCharacter(character)
-        if playerName then
-            local billboard = Instance.new("BillboardGui")
-            billboard.Name = "MarkusESP_Name"
-            billboard.Adornee = character:FindFirstChild("Head") or character:FindFirstChild("HumanoidRootPart") or character.PrimaryPart
-            billboard.Size = UDim2.new(0, 200, 0, 50)
-            billboard.StudsOffset = Vector3.new(0, 3, 0)
-            billboard.AlwaysOnTop = true
-            billboard.Parent = character
-            
-            local nameLabel = Instance.new("TextLabel")
-            nameLabel.Text = playerName.Name
-            nameLabel.Size = UDim2.new(1, 0, 1, 0)
-            nameLabel.Font = Enum.Font.GothamBold
-            nameLabel.TextSize = 18
-            nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-            nameLabel.BackgroundTransparency = 1
-            nameLabel.Parent = billboard
-        end
-        
         table.insert(espCache, highlight)
-        
-        -- Для невидимых игроков добавляем дополнительный эффект
-        local invisCheck = character:FindFirstChildWhichIsA("BodyColors") or character:FindFirstChildOfClass("Humanoid")
-        if not invisCheck then
-            highlight.OutlineColor = Color3.fromRGB(255, 0, 0) -- Красный для невидимых
-            highlight.FillColor = Color3.fromRGB(255, 0, 0)
-            highlight.FillTransparency = 0.7
-        end
     end)
 end
 
@@ -246,14 +298,6 @@ local function clearESP()
     SafeCall(function()
         for _, esp in pairs(espCache) do
             if esp and esp.Parent then
-                -- Удаляем также BillboardGui с именами
-                local character = esp.Adornee
-                if character then
-                    local billboard = character:FindFirstChild("MarkusESP_Name")
-                    if billboard then
-                        billboard:Destroy()
-                    end
-                end
                 esp:Destroy()
             end
         end
@@ -266,17 +310,8 @@ local function updateESP()
         clearESP()
         if espEnabled then
             for _, plr in pairs(Players:GetPlayers()) do
-                if plr ~= player then
-                    -- Проверяем текущего персонажа
-                    if plr.Character then
-                        createESP(plr.Character)
-                    end
-                    -- Подключаемся к будущим персонажам
-                    plr.CharacterAdded:Connect(function(char)
-                        if espEnabled then
-                            createESP(char)
-                        end
-                    end)
+                if plr ~= player and plr.Character then
+                    createESP(plr.Character)
                 end
             end
         end
@@ -289,104 +324,55 @@ espButton.MouseButton1Click:Connect(function()
     updateESP()
 end)
 
--- Улучшенный визуальный спин
-local spinButton = CreateButton("Visual Spin: OFF", 60, visualTab)
-local spinEnabled = false
-local spinSpeed = 10 -- Увеличим скорость
-local spinParts = {}
-local spinConnections = {}
+----------------------
+-- Основные функции --
+----------------------
+-- Jump Boost с регулировкой
+local jumpBoostSlider = CreateSlider("Jump Power: 50", 10, mainTab, 20, 200, 50)
+local jumpBoostEnabled = false
+local originalJumpPower = 50
+local jumpConnection
 
-local function setSpin(enabled)
+local function setJumpBoost(enabled)
     SafeCall(function()
         local character = player.Character
         if not character then return end
         
+        local humanoid = character:FindFirstChild("Humanoid")
+        if not humanoid then return end
+        
         if enabled then
-            -- Собираем все части для кручения
-            spinParts = {}
+            originalJumpPower = humanoid.JumpPower
+            humanoid.JumpPower = jumpBoostSlider.getValue()
             
-            for _, part in pairs(character:GetDescendants()) do
-                if part:IsA("BasePart") and part ~= character:FindFirstChild("HumanoidRootPart") then
-                    table.insert(spinParts, part)
-                    
-                    -- Добавляем свечение для эффекта
-                    local glow = Instance.new("SurfaceGui", part)
-                    glow.Face = Enum.NormalId.Front
-                    glow.AlwaysOnTop = true
-                    
-                    local frame = Instance.new("Frame", glow)
-                    frame.Size = UDim2.new(1, 0, 1, 0)
-                    frame.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
-                    frame.BackgroundTransparency = 0.7
-                    frame.BorderSizePixel = 0
+            jumpConnection = humanoid:GetPropertyChangedSignal("JumpPower"):Connect(function()
+                if humanoid.JumpPower ~= jumpBoostSlider.getValue() then
+                    humanoid.JumpPower = jumpBoostSlider.getValue()
                 end
-            end
-            
-            -- Создаем эффект кручения для каждой части
-            for _, part in pairs(spinParts) do
-                local spinConn = RunService.Heartbeat:Connect(function(delta)
-                    if part and part.Parent then
-                        part.CFrame = part.CFrame * CFrame.Angles(0, math.rad(spinSpeed), 0)
-                    end
-                end)
-                table.insert(spinConnections, spinConn)
-            end
+            end)
         else
-            -- Останавливаем все соединения
-            for _, conn in pairs(spinConnections) do
-                conn:Disconnect()
+            if jumpConnection then
+                jumpConnection:Disconnect()
+                jumpConnection = nil
             end
-            spinConnections = {}
-            
-            -- Удаляем свечение
-            for _, part in pairs(spinParts) do
-                if part and part.Parent then
-                    local glow = part:FindFirstChildOfClass("SurfaceGui")
-                    if glow then
-                        glow:Destroy()
-                    end
-                end
-            end
-            spinParts = {}
+            humanoid.JumpPower = originalJumpPower
         end
     end)
 end
 
-spinButton.MouseButton1Click:Connect(function()
-    spinEnabled = not spinEnabled
-    spinButton.Text = "Visual Spin: " .. (spinEnabled and "ON" or "OFF")
-    setSpin(spinEnabled)
+local jumpBoostButton = CreateButton("Jump Boost: OFF", 90, mainTab)
+jumpBoostButton.MouseButton1Click:Connect(function()
+    jumpBoostEnabled = not jumpBoostEnabled
+    jumpBoostButton.Text = "Jump Boost: " .. (jumpBoostEnabled and "ON" or "OFF")
+    setJumpBoost(jumpBoostEnabled)
 end)
 
-----------------------
--- Основные функции --
-----------------------
-local speedButton = CreateButton("Speed: OFF", 10, mainTab)
+-- Speed с использованием Spring Coil
+local speedButton = CreateButton("Speed: OFF", 150, mainTab)
 local speedEnabled = false
 local originalWalkSpeed = 16
-local speedMultiplier = 1.5
-local fakeSpringTool = nil
+local speedMultiplier = 2
 local speedConnection
-
-local function createFakeSpringTool()
-    if fakeSpringTool and fakeSpringTool.Parent then
-        fakeSpringTool:Destroy()
-    end
-    
-    fakeSpringTool = Instance.new("Tool")
-    fakeSpringTool.Name = "Spring"
-    fakeSpringTool.Grip = CFrame.new(0, 0, 0.5) * CFrame.Angles(math.pi/2, 0, 0)
-    
-    local handle = Instance.new("Part")
-    handle.Name = "Handle"
-    handle.Size = Vector3.new(1, 1, 1)
-    handle.Transparency = 1
-    handle.CanCollide = false
-    handle.Anchored = false
-    handle.Parent = fakeSpringTool
-    
-    fakeSpringTool.Parent = player.Character or player.Backpack
-end
 
 local function setSpeed(enabled)
     SafeCall(function()
@@ -397,8 +383,34 @@ local function setSpeed(enabled)
         if not humanoid then return end
         
         if enabled then
-            -- Создаем фейковую пружинку
-            createFakeSpringTool()
+            -- Проверяем наличие Spring Coil
+            local springCoil = nil
+            for _, tool in pairs(character:GetChildren()) do
+                if tool:IsA("Tool") and tool.Name:lower():find("spring") then
+                    springCoil = tool
+                    break
+                end
+            end
+            
+            if not springCoil then
+                for _, tool in pairs(player.Backpack:GetChildren()) do
+                    if tool:IsA("Tool") and tool.Name:lower():find("spring") then
+                        springCoil = tool
+                        break
+                    end
+                end
+            end
+            
+            if springCoil then
+                springCoil.Parent = character
+            else
+                warn("Spring Coil not found in inventory!")
+                speedButton.Text = "Speed: NO SPRING"
+                task.delay(2, function()
+                    speedButton.Text = "Speed: OFF"
+                end)
+                return
+            end
             
             -- Устанавливаем скорость
             originalWalkSpeed = humanoid.WalkSpeed
@@ -411,12 +423,6 @@ local function setSpeed(enabled)
                 end
             end)
         else
-            -- Удаляем фейковую пружинку
-            if fakeSpringTool then
-                fakeSpringTool:Destroy()
-                fakeSpringTool = nil
-            end
-            
             -- Восстанавливаем скорость
             if speedConnection then
                 speedConnection:Disconnect()
@@ -436,174 +442,55 @@ speedButton.MouseButton1Click:Connect(function()
     setSpeed(speedEnabled)
 end)
 
-local jumpButton = CreateButton("2x Jump: OFF", 60, mainTab)
-local jumpEnabled = false
-local originalJumpPower = 50
-local jumpMultiplier = 2
-local jumpConnection
-
-local function setJump(enabled)
-    SafeCall(function()
-        local character = player.Character
-        if not character then return end
-        
-        local humanoid = character:FindFirstChild("Humanoid")
-        if not humanoid then return end
-        
-        if enabled then
-            originalJumpPower = humanoid.JumpPower
-            humanoid.JumpPower = originalJumpPower * jumpMultiplier
-            
-            jumpConnection = humanoid:GetPropertyChangedSignal("JumpPower"):Connect(function()
-                if humanoid.JumpPower ~= originalJumpPower * jumpMultiplier then
-                    humanoid.JumpPower = originalJumpPower * jumpMultiplier
-                end
-            end)
-        else
-            if jumpConnection then
-                jumpConnection:Disconnect()
-                jumpConnection = nil
-            end
-            humanoid.JumpPower = originalJumpPower
-        end
-    end)
-end
-
-jumpButton.MouseButton1Click:Connect(function()
-    jumpEnabled = not jumpEnabled
-    jumpButton.Text = "2x Jump: " .. (jumpEnabled and "ON" or "OFF")
-    setJump(jumpEnabled)
-end)
-
--- Анти-смерть
-local antiDieButton = CreateButton("Anti Die: OFF", 110, mainTab)
-local antiDieEnabled = false
-local antiDieConnections = {}
-
-local function setAntiDie(enabled)
-    SafeCall(function()
-        local character = player.Character
-        if not character then return end
-        
-        local humanoid = character:FindFirstChild("Humanoid")
-        if not humanoid then return end
-        
-        if enabled then
-            -- Сохраняем оригинальное здоровье
-            humanoid.MaxHealth = math.huge
-            humanoid.Health = math.huge
-            
-            -- Защита от урона
-            local function preventDamage()
-                humanoid:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
-                humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
-                
-                if humanoid.Health < humanoid.MaxHealth then
-                    humanoid.Health = humanoid.MaxHealth
-                end
-            end
-            
-            -- Подключаем обработчики
-            table.insert(antiDieConnections, humanoid.HealthChanged:Connect(function()
-                if humanoid.Health < humanoid.MaxHealth then
-                    humanoid.Health = humanoid.MaxHealth
-                end
-            end))
-            
-            table.insert(antiDieConnections, RunService.Heartbeat:Connect(preventDamage))
-            
-            -- Защита от удаления персонажа
-            table.insert(antiDieConnections, character.AncestryChanged:Connect(function()
-                if not character.Parent then
-                    local newChar = player.Character or player.CharacterAdded:Wait()
-                    setAntiDie(true) -- Повторно активируем для нового персонажа
-                end
-            end))
-        else
-            -- Отключаем все обработчики
-            for _, conn in pairs(antiDieConnections) do
-                conn:Disconnect()
-            end
-            antiDieConnections = {}
-            
-            -- Восстанавливаем стандартные настройки
-            humanoid:SetStateEnabled(Enum.HumanoidStateType.Dead, true)
-            humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
-            
-            if humanoid.MaxHealth > 100 then
-                humanoid.MaxHealth = 100
-                humanoid.Health = 100
-            end
-        end
-    end)
-end
-
-antiDieButton.MouseButton1Click:Connect(function()
-    antiDieEnabled = not antiDieEnabled
-    antiDieButton.Text = "Anti Die: " .. (antiDieEnabled and "ON" or "OFF")
-    setAntiDie(antiDieEnabled)
-end)
-
 ----------------------
 -- Развлекательные функции --
 ----------------------
-local bigHeadButton = CreateButton("Huge Head: OFF", 10, funTab)
-local bigHeadEnabled = false
-local originalHeadSize = Vector3.new(1, 1, 1)
-local headScale = 3 -- Огромная голова
-local headParts = {}
+-- Визуальный спин (плавное вращение)
+local spinButton = CreateButton("Visual Spin: OFF", 10, funTab)
+local spinEnabled = false
+local spinSpeed = 5
+local spinParts = {}
+local spinConnections = {}
 
-local function setBigHead(enabled)
+local function setSpin(enabled)
     SafeCall(function()
         local character = player.Character
         if not character then return end
         
         if enabled then
-            -- Сохраняем оригинальные размеры
-            headParts = {}
+            -- Собираем все части для кручения
+            spinParts = {}
             
-            -- Находим все части головы
             for _, part in pairs(character:GetDescendants()) do
-                if part:IsA("BasePart") and (part.Name:lower():find("head") or part.Parent:IsA("Accessory")) then
-                    table.insert(headParts, {
-                        part = part,
-                        originalSize = part.Size,
-                        originalMesh = part:FindFirstChildOfClass("SpecialMesh")
-                    })
-                    
-                    -- Увеличиваем размер
-                    part.Size = part.Size * headScale
-                    
-                    -- Увеличиваем меш если есть
-                    local mesh = part:FindFirstChildOfClass("SpecialMesh")
-                    if mesh then
-                        mesh.Scale = mesh.Scale * headScale
-                    end
+                if part:IsA("BasePart") and part ~= character:FindFirstChild("HumanoidRootPart") then
+                    table.insert(spinParts, part)
                 end
+            end
+            
+            -- Создаем эффект кручения для каждой части
+            for _, part in pairs(spinParts) do
+                local spinConn = RunService.Heartbeat:Connect(function(delta)
+                    if part and part.Parent then
+                        part.CFrame = part.CFrame * CFrame.Angles(0, math.rad(spinSpeed * delta * 60), 0)
+                    end
+                end)
+                table.insert(spinConnections, spinConn)
             end
         else
-            -- Восстанавливаем оригинальные размеры
-            for _, data in pairs(headParts) do
-                if data.part and data.part.Parent then
-                    data.part.Size = data.originalSize
-                    
-                    if data.originalMesh then
-                        local mesh = data.part:FindFirstChildOfClass("SpecialMesh")
-                        if mesh then
-                            mesh.Scale = data.originalMesh.Scale
-                        end
-                    end
-                end
+            -- Останавливаем все соединения
+            for _, conn in pairs(spinConnections) do
+                conn:Disconnect()
             end
-            headParts = {}
+            spinConnections = {}
+            spinParts = {}
         end
     end)
 end
 
-bigHeadButton.MouseButton1Click:Connect(function()
-    bigHeadEnabled = not bigHeadEnabled
-    bigHeadButton.Text = "Huge Head: " .. (bigHeadEnabled and "ON" or "OFF")
-    setBigHead(bigHeadEnabled)
+spinButton.MouseButton1Click:Connect(function()
+    spinEnabled = not spinEnabled
+    spinButton.Text = "Visual Spin: " .. (spinEnabled and "ON" or "OFF")
+    setSpin(spinEnabled)
 end)
 
 -- Обработчики персонажа
@@ -618,14 +505,8 @@ local function handleCharacter(character)
     -- Восстанавливаем прыжок
     local humanoid = character:FindFirstChild("Humanoid")
     if humanoid then
-        if jumpEnabled then
-            originalJumpPower = humanoid.JumpPower
-            humanoid.JumpPower = originalJumpPower * jumpMultiplier
-        end
-        
-        -- Восстанавливаем анти-смерть
-        if antiDieEnabled then
-            setAntiDie(true)
+        if jumpBoostEnabled then
+            setJumpBoost(true)
         end
     end
     
@@ -639,11 +520,6 @@ local function handleCharacter(character)
     if spinEnabled then
         setSpin(true)
     end
-    
-    -- Восстанавливаем большую голову
-    if bigHeadEnabled then
-        setBigHead(true)
-    end
 end
 
 player.CharacterAdded:Connect(handleCharacter)
@@ -655,7 +531,7 @@ Players.PlayerAdded:Connect(function(plr)
             createESP(char)
         end
     end)
-end)
+end
 
 -- Первоначальная загрузка
 if player.Character then
@@ -663,4 +539,4 @@ if player.Character then
 end
 updateESP()
 
-print("Markus Script v3.9 loaded! "..(isMobile and "Tap M button" or "Press M key"))
+print("Markus Script v4.0 loaded! "..(isMobile and "Tap M button" or "Press M key"))
